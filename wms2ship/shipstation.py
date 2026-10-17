@@ -2,7 +2,10 @@
 
 import base64
 import binascii
+from copy import deepcopy
 from decimal import Decimal, InvalidOperation
+from threading import Lock
+from time import monotonic
 
 import httpx
 
@@ -11,6 +14,16 @@ from wms2ship.providers import PurchaseRejected, PurchaseResult, PurchaseUncerta
 
 class ProviderUnavailable(Exception):
     pass
+
+
+class LookupCache:
+    """Short-lived, account-local read cache shared by paid and test providers."""
+
+    def __init__(self):
+        self.lock = Lock()
+        self.responses = {}
+        self.blocked_until = 0
+        self.blocked_message = ""
 
 
 def address(value, residential=False):
@@ -86,9 +99,11 @@ def build_payload(snapshot):
 class ShipStationProvider:
     code = "shipstation"
     mode = "live"
+    allowed_carrier_codes = None
 
-    def __init__(self, key, secret, enable_live=False, transport=None):
+    def __init__(self, key, secret, enable_live=False, transport=None, lookup_cache=None):
         self.enable_live = enable_live
+        self.lookup_cache = lookup_cache if lookup_cache is not None else LookupCache()
         self.client = httpx.Client(
             base_url="https://ssapi.shipstation.com",
             auth=httpx.BasicAuth(key, secret),
@@ -102,17 +117,55 @@ class ShipStationProvider:
         self.client.close()
 
     def get(self, path, params=None):
-        try:
-            response = self.client.get(path, params=params)
-            response.raise_for_status()
-            result = response.json()
-            if not isinstance(result, list):
-                raise ValueError()
+        key = (path, tuple(sorted((params or {}).items())))
+        cache = self.lookup_cache
+        # Coalesce concurrent form refreshes; label POSTs never use this cache.
+        with cache.lock:
+            cached = cache.responses.get(key)
+            if cached and monotonic() - cached[0] < 300:
+                return deepcopy(cached[1])
+            if monotonic() < cache.blocked_until:
+                raise ProviderUnavailable(cache.blocked_message)
+            try:
+                response = self.client.get(path, params=params)
+            except httpx.TimeoutException:
+                raise ProviderUnavailable(
+                    f"ShipStation {path} timed out. Try again shortly."
+                ) from None
+            except httpx.HTTPError:
+                raise ProviderUnavailable(
+                    f"Cannot connect to ShipStation {path}. Check the network and try again."
+                ) from None
+            if response.status_code == 429:
+                try:
+                    wait = max(1, min(3600, int(response.headers.get("X-Rate-Limit-Reset", "60"))))
+                except ValueError:
+                    wait = 60
+                cache.blocked_until = monotonic() + wait
+                cache.blocked_message = (
+                    f"ShipStation rate limit reached (HTTP 429). Wait {wait} seconds, "
+                    "then reopen the order."
+                )
+                raise ProviderUnavailable(cache.blocked_message)
+            if response.status_code in (401, 403):
+                raise ProviderUnavailable(
+                    f"ShipStation denied access to {path} (HTTP {response.status_code}). "
+                    "Check the V1 credentials and API permissions."
+                )
+            if not response.is_success:
+                raise ProviderUnavailable(
+                    f"ShipStation {path} returned HTTP {response.status_code}. Try again shortly."
+                )
+            try:
+                result = response.json()
+                if not isinstance(result, list):
+                    raise ValueError()
+            except ValueError:
+                raise ProviderUnavailable(
+                    f"ShipStation {path} returned an invalid lookup response. Try again shortly."
+                ) from None
+            cache.responses[key] = (monotonic(), deepcopy(result))
             return result
-        except (httpx.HTTPError, ValueError):
-            raise ProviderUnavailable(
-                "ShipStation lookup failed. Check account access and try again."
-            ) from None
 
     def catalog(self):
         stores = self.get("/stores", {"showInactive": "false"})
@@ -124,6 +177,8 @@ class ShipStationProvider:
             grouped.setdefault(account["code"], []).append(account)
         carriers = []
         for code, accounts in grouped.items():
+            if self.allowed_carrier_codes is not None and code not in self.allowed_carrier_codes:
+                continue
             # Direct-label flow initially supports the primary connected carrier account.
             selected = next((a for a in accounts if a.get("primary") is True), None)
             if selected is None and len(accounts) == 1:
@@ -211,6 +266,7 @@ class ShipStationTestProvider(ShipStationProvider):
 
     code = "shipstation_test"
     mode = "test"
+    allowed_carrier_codes = {"stamps_com"}
 
     def catalog(self):
         catalog = super().catalog()

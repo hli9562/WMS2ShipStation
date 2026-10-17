@@ -364,3 +364,95 @@ def test_usps_test_label_cannot_send_paid_request_and_is_reported_separately(tmp
         with pytest.raises(PurchaseRejected):
             provider.create_label(invalid, "invalid")
         assert len(calls) == 1
+
+
+def test_usps_lookup_skips_other_carriers_and_reuses_shared_cache(monkeypatch):
+    from wms2ship.shipstation import LookupCache, ShipStationTestProvider
+
+    calls = []
+    clock = [1000.0]
+    monkeypatch.setattr("wms2ship.shipstation.monotonic", lambda: clock[0])
+
+    def handler(request):
+        calls.append((request.url.path, request.url.params.get("carrierCode")))
+        assert request.url.params.get("carrierCode") != "ups"
+        return httpx.Response(
+            200,
+            json={
+                "/stores": [{"marketplaceId": 0, "active": True}],
+                "/carriers": [
+                    {"code": "stamps_com", "name": "USPS", "primary": True},
+                    {"code": "ups", "name": "UPS", "primary": True},
+                ],
+                "/carriers/listservices": [{"code": "usps_priority_mail", "name": "Priority"}],
+                "/carriers/listpackages": [{"code": "package", "name": "Package"}],
+            }[request.url.path],
+        )
+
+    cache = LookupCache()
+    test = ShipStationTestProvider(
+        "k", "s", transport=httpx.MockTransport(handler), lookup_cache=cache
+    )
+    paid = ShipStationProvider("k", "s", transport=httpx.MockTransport(handler), lookup_cache=cache)
+    try:
+        first = test.catalog()
+        assert len(calls) == 4
+        first["carriers"][0]["services"].clear()
+        assert len(test.catalog()["carriers"][0]["services"]) == 1
+        assert len(calls) == 4
+        assert len(paid.get("/carriers")) == 2
+        assert len(calls) == 4
+        clock[0] += 301
+        test.catalog()
+        assert len(calls) == 8
+    finally:
+        test.close()
+        paid.close()
+
+
+def test_lookup_rate_limit_cooldown_and_redaction(monkeypatch):
+    clock = [1000.0]
+    calls = []
+    monkeypatch.setattr("wms2ship.shipstation.monotonic", lambda: clock[0])
+
+    def handler(request):
+        calls.append(request.url.path)
+        return httpx.Response(
+            429, headers={"X-Rate-Limit-Reset": "30"}, text="secret-provider-body"
+        )
+
+    provider = ShipStationProvider(
+        "secret-key", "secret-secret", transport=httpx.MockTransport(handler)
+    )
+    try:
+        for _ in range(2):
+            with pytest.raises(ProviderUnavailable, match="Wait 30 seconds") as error:
+                provider.get("/carriers")
+            assert "secret" not in str(error.value)
+        assert len(calls) == 1
+        clock[0] += 31
+        with pytest.raises(ProviderUnavailable, match="429"):
+            provider.get("/carriers")
+        assert len(calls) == 2
+    finally:
+        provider.close()
+
+
+@pytest.mark.parametrize(
+    "status,expected", [(401, "credentials"), (403, "permissions"), (503, "503")]
+)
+def test_lookup_errors_explain_failure_without_provider_body(status, expected):
+    provider = ShipStationProvider(
+        "k",
+        "s",
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(status, text="PRIVATE provider body")
+        ),
+    )
+    try:
+        with pytest.raises(ProviderUnavailable, match=expected) as error:
+            provider.get("/carriers")
+        assert "PRIVATE" not in str(error.value)
+        assert "/carriers" in str(error.value)
+    finally:
+        provider.close()

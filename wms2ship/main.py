@@ -53,6 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.providers["shipstation_test"] = ShipStationTestProvider(
                 settings.shipstation_api_key.get_secret_value(),
                 settings.shipstation_api_secret.get_secret_value(),
+                lookup_cache=app.state.providers["shipstation"].lookup_cache,
             )
 
         app.state.csrf_token = secrets.token_urlsafe(32)

@@ -55,3 +55,13 @@ No automatic history deletion or label void/replacement is provided. Do not expo
 - [ ] Backup restoration is rehearsed for the operator's actual storage setup.
 
 Track findings in [issue #7](https://github.com/hli9562/WMS2ShipStation/issues/7). Do not paste recipient addresses or credentials into GitHub.
+
+### ShipStation lookup troubleshooting
+
+Carrier/store/service/package GET responses are cached in memory for five minutes
+and shared by live and USPS test modes for the same account. Restart the app to
+refresh immediately after changing carrier connections. USPS test mode fetches
+only Stamps.com services/packages. HTTP 429 starts a temporary lookup cooldown;
+follow the wait time shown by the app. HTTP 401/403 errors indicate credentials
+or account permissions; endpoint/status errors and timeouts are shown without
+provider bodies or secrets. Label POST requests are never cached or retried.
