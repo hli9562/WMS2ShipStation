@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf }}">
   <script src="/static/app.js" defer></script>
+  <script src="/static/folder-inbox.js" defer></script>
   <title>Apex · WMS2ShipStation</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -33,6 +34,26 @@
         <button type="submit">Import and preview</button>
       </form>
       <div id="import-result"></div>
+      <div class="folder-inbox">
+        <div class="order-heading">
+          <h2>Folder inbox</h2>
+          <div>
+            <button type="button" id="choose-folder">Choose folder</button>
+            <button type="button" id="reconnect-folder" hidden>Reconnect folder</button>
+            <button type="button" id="refresh-folder" disabled>Refresh</button>
+            <button type="button" id="stop-folder" hidden>Disconnect</button>
+          </div>
+        </div>
+        <p id="folder-status" role="status" aria-live="polite">Choose a folder to find XLSX files that have not been imported.</p>
+        <p class="field-note">Checks top-level XLSX files every 15 seconds while this app is open. Select files below to import them.</p>
+        <label class="inbox-toggle"><input type="checkbox" id="show-imported-files"> Show imported files</label>
+        <div class="table-scroll" tabindex="0" aria-label="Scrollable folder file list"><table id="folder-table"><caption>Files in the selected folder</caption><thead><tr><th scope="col">Select</th><th scope="col">File</th><th scope="col">Modified</th><th scope="col">Size</th><th scope="col">Import status</th></tr></thead><tbody></tbody></table></div>
+        <div class="inbox-actions">
+          <button type="button" id="select-new-files" disabled>Select new files</button>
+          <button type="button" id="import-folder-files" disabled>Import selected</button>
+          <span id="folder-import-status" role="status" aria-live="polite"></span>
+        </div>
+      </div>
       <h2>Imported WMS orders</h2>
       <p>Select an order to review and edit its shipping details. Existing orders are retained when you import them again.</p>
       <div id="orders"></div>

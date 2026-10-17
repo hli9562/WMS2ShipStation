@@ -1,8 +1,10 @@
 import json
 from pathlib import PurePosixPath
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Request
-from sqlalchemy import text
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import bindparam, text
 from starlette.concurrency import run_in_threadpool
 
 from wms2ship.importer import ImportRejected, import_workbook
@@ -33,6 +35,41 @@ async def upload(request: Request, filename: str):
         )
     except ImportRejected as exc:
         raise HTTPException(422, str(exc)) from None
+
+
+class ImportFingerprints(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    hashes: list[Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]] = Field(max_length=200)
+
+
+@router.post("/api/imports/check")
+def check_imported(payload: ImportFingerprints, request: Request):
+    hashes = list(dict.fromkeys(payload.hashes))
+    if not hashes:
+        return {"files": []}
+    with request.app.state.engine.connect() as db:
+        rows = (
+            db.execute(
+                text(
+                    "SELECT id,sha256,summary_json FROM import_batches WHERE sha256 IN :hashes "
+                    "ORDER BY created_at DESC,id DESC"
+                ).bindparams(bindparam("hashes", expanding=True)),
+                {"hashes": hashes},
+            )
+            .mappings()
+            .all()
+        )
+    latest = {}
+    for row in rows:
+        if row["sha256"] not in latest:
+            summary = json.loads(row["summary_json"])
+            latest[row["sha256"]] = {
+                "sha256": row["sha256"],
+                "batch_id": row["id"],
+                "summary": summary,
+                "status": "needs_review" if summary.get("invalid", 0) else "imported",
+            }
+    return {"files": [latest.get(h, {"sha256": h, "status": "new"}) for h in hashes]}
 
 
 @router.get("/api/imports/{batch_id}")

@@ -95,6 +95,7 @@ document.querySelector('#import-form').addEventListener('submit', async event =>
       if (row.issues.length) message(results, `${row.sheet}, row ${row.row}, order ${row.source_order_no || '(missing)'}: ${row.issues.join(' ')}`);
     }
     await loadOrders();
+    document.dispatchEvent(new Event('wms-import-complete'));
   } catch (error) { status.textContent = error.message; }
   finally { button.disabled = false; }
 });

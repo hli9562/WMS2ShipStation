@@ -107,3 +107,15 @@ td { min-width: 100px; overflow-wrap: anywhere; }
   .order-heading { align-items: flex-start; }
   #configuration-actions button { flex: 1; }
 }
+
+.folder-inbox { margin: 16px 0 20px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--canvas); }
+.folder-inbox h2 { margin: 0; }
+.folder-inbox p { font-size: .85rem; margin: 8px 0; }
+.inbox-toggle { display: flex; align-items: center; gap: 8px; font-size: .8rem; margin: 12px 0; }
+.inbox-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#folder-import-status { flex: 1; font-size: .85rem; }
+#folder-table td:first-child { min-width: 50px; }
+#folder-table input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--brand-navy); }
+
+.folder-inbox .table-scroll { max-height: 280px; overflow: auto; }
+.folder-inbox th { position: sticky; top: 0; z-index: 1; }

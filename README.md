@@ -158,3 +158,26 @@ request token (`repeat_test: true`) and retains prior labels and history.
 Duplicate tokens return the original attempt; sending/uncertain attempts block
 repeats until resolved. This exception applies only to USPS test mode and never
 releases a paid-purchase guard. Do not use test labels or tracking for fulfillment.
+
+### Folder inbox
+
+On **WMS orders**, click **Choose folder** and allow read access to your WMS
+export folder in Chrome or Edge. Top-level `.xlsx` files are checked every
+15 seconds while the app is open and visible; returning to the tab refreshes
+the list. Monitoring resumes after reopening the app when browser permission
+is retained; otherwise click **Reconnect folder**. **Disconnect** forgets the
+folder without changing its files or database history.
+
+**Select new files → Import selected** imports only the files you select.
+SHA-256 content fingerprints are compared with the database, including previous
+manual uploads: renamed copies are recognized as imported, while changed content
+appears new. Files with invalid order rows show **Needs review**, with a button
+to view issues. **Show imported files** includes completed imports. Duplicate
+contents within one selection are processed once; existing orders are preserved.
+
+Excel lock files (`~$...`), hidden files, and nested folders are skipped. Files
+newer than two seconds wait for a later check; empty, oversized (over 10 MB), or
+unreadable files cannot be selected. Each selected file is checked again before
+upload. The folder is read-only: monitoring never moves/deletes files or buys
+postage. Folder access occurs in the browser, so no Docker host mount is needed.
+Localhost and HTTPS are supported; other browsers can use the normal file picker.
