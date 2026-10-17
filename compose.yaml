@@ -6,6 +6,9 @@ services:
     environment:
       WMS_DATA_DIR: /data
       PORT: "8080"
+      SHIPSTATION_API_KEY: ${SHIPSTATION_API_KEY:-}
+      SHIPSTATION_API_SECRET: ${SHIPSTATION_API_SECRET:-}
+      WMS_ENABLE_LIVE_PURCHASE: ${WMS_ENABLE_LIVE_PURCHASE:-false}
     volumes:
       - app_data:/data
     restart: unless-stopped

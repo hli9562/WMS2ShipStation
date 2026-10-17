@@ -16,6 +16,7 @@ from wms2ship.import_routes import router as import_router
 from wms2ship.providers import FakeProvider
 from wms2ship.purchases import recover_interrupted
 from wms2ship.purchases import router as purchase_router
+from wms2ship.shipstation import ProviderUnavailable, ShipStationProvider
 
 ROOT = Path(__file__).parent
 
@@ -30,9 +31,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.engine = make_engine(settings)
         recover_interrupted(app.state.engine)
         app.state.providers = {"fake": FakeProvider()}
+        if (
+            settings.shipstation_api_key.get_secret_value()
+            and settings.shipstation_api_secret.get_secret_value()
+        ):
+            app.state.providers["shipstation"] = ShipStationProvider(
+                settings.shipstation_api_key.get_secret_value(),
+                settings.shipstation_api_secret.get_secret_value(),
+                settings.enable_live_purchase,
+            )
+
         app.state.csrf_token = secrets.token_urlsafe(32)
-        yield
-        app.state.engine.dispose()
+        try:
+            yield
+        finally:
+            for provider in app.state.providers.values():
+                if hasattr(provider, "close"):
+                    provider.close()
+            app.state.engine.dispose()
 
     app = FastAPI(title="WMS2ShipStation", lifespan=lifespan)
     app.state.settings = settings
@@ -61,6 +77,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         )
         return response
+
+    @app.exception_handler(ProviderUnavailable)
+    async def provider_error(request, exc):
+        return JSONResponse({"detail": str(exc)}, status_code=502)
+
+    @app.get("/api/providers")
+    def providers(request: Request):
+        return [
+            {
+                "code": p.code,
+                "mode": p.mode,
+                "live_purchase_enabled": getattr(p, "enable_live", False),
+            }
+            for p in request.app.state.providers.values()
+        ]
 
     @app.get("/health")
     def health(request: Request):

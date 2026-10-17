@@ -128,12 +128,22 @@ def validate_order(order, catalog):
                 "Existing WMS tracking requires investigation; purchase blocked.",
             )
     if shipping.get("provider") != catalog.get("provider", "fake"):
-        issue("shipping.provider", "Only the simulated provider is available at this checkpoint.")
+        issue(
+            "shipping.provider",
+            "The configured provider does not match the selected shipping catalog.",
+        )
     carriers = catalog.get("carriers", [])
     selected = next((c for c in carriers if c["code"] == shipping.get("carrier_code")), None)
     if selected is None:
         issue("shipping.carrier_code", "Choose an available carrier.")
     else:
+        service = next(
+            (s for s in selected["services"] if s["code"] == shipping.get("service_code")), None
+        )
+        if service:
+            scope = "international" if recipient.get("country") == "CA" else "domestic"
+            if service.get(scope) is False:
+                issue("shipping.service_code", "Service does not support this destination scope.")
         for field, options in (("service_code", "services"), ("package_code", "packages")):
             if shipping.get(field) not in {c["code"] for c in selected[options]}:
                 issue(f"shipping.{field}", "Choose an available option for the selected carrier.")
@@ -193,9 +203,10 @@ def validate_order(order, catalog):
 
 @router.get("/api/providers/{provider}/carriers")
 def catalog(provider: str, request: Request):
-    if provider != "fake":
-        raise HTTPException(400, "Live provider discovery is not implemented yet.")
-    return FAKE_CHOICES
+    adapter = request.app.state.providers.get(provider)
+    if adapter is None:
+        raise HTTPException(400, "Provider is not configured.")
+    return adapter.catalog()
 
 
 @router.patch("/api/orders/{order_id}")
@@ -231,10 +242,15 @@ def configure(order_id: str, payload: OrderConfiguration, request: Request):
 @router.post("/api/orders/{order_id}/validate")
 def validate(order_id: str, request: Request):
     order = order_detail(order_id, request)
-    issues = validate_order(order, FAKE_CHOICES)
+    provider = request.app.state.providers.get(
+        (order.get("shipping") or {}).get("provider", "fake")
+    )
+    if provider is None:
+        raise HTTPException(400, "Provider is not configured.")
+    issues = validate_order(order, provider.catalog())
     return {
         "valid": not issues,
         "issues": issues,
-        "mode": "simulation",
+        "mode": provider.mode,
         "version": order["version"],
     }

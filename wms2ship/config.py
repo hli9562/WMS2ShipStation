@@ -1,10 +1,19 @@
 from pathlib import Path
 
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="WMS_", extra="ignore")
+
+    shipstation_api_key: SecretStr = Field(
+        default=SecretStr(""), validation_alias="SHIPSTATION_API_KEY"
+    )
+    shipstation_api_secret: SecretStr = Field(
+        default=SecretStr(""), validation_alias="SHIPSTATION_API_SECRET"
+    )
+    enable_live_purchase: bool = False
 
     data_dir: Path = Path("data")
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]

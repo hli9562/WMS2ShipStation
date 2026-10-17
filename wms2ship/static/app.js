@@ -59,6 +59,8 @@ document.querySelector('#import-form').addEventListener('submit', async event =>
 loadOrders().catch(error => { status.textContent = error.message; });
 
 let currentOrder;
+let availableProviders = [{code: 'fake', mode: 'simulation', live_purchase_enabled: false}];
+api('/api/providers').then(data => { availableProviders = data; }).catch(error => { status.textContent = error.message; });
 function field(parent, name, label, value = '', options = null, type = 'text') {
   const wrapper = document.createElement('label');
   wrapper.textContent = label;
@@ -75,6 +77,7 @@ function field(parent, name, label, value = '', options = null, type = 'text') {
   input.value = value == null ? '' : String(value);
   wrapper.append(input);
   parent.append(wrapper);
+  return input;
 }
 function showConfiguration(order) {
   currentOrder = order;
@@ -89,9 +92,38 @@ function showConfiguration(order) {
     field(origin, `origin.${key}`, label, order.origin?.[key]);
   }
   const s = order.shipping || {};
-  field(shipping, 'shipping.carrier_code', 'Carrier (simulated)', s.carrier_code, [['demo', 'Demo carrier — simulated']]);
-  field(shipping, 'shipping.service_code', 'Service (simulated)', s.service_code, [['demo_ground', 'Demo ground — simulated']]);
-  field(shipping, 'shipping.package_code', 'Package (simulated)', s.package_code, [['demo_parcel', 'Demo parcel — simulated']]);
+  const providerSelect = field(shipping, 'shipping.provider', 'Shipping provider', s.provider || 'fake', availableProviders.map(p => [p.code, p.mode === 'simulation' ? 'Simulation — no postage' : 'ShipStation V1 — live account']));
+  const carrierSelect = field(shipping, 'shipping.carrier_code', 'Carrier', s.carrier_code, []);
+  const serviceSelect = field(shipping, 'shipping.service_code', 'Service', s.service_code, []);
+  const packageSelect = field(shipping, 'shipping.package_code', 'Package type', s.package_code, []);
+  async function refreshCatalog(restore = false) {
+    const providerCode = providerSelect.value;
+    const modeInfo = availableProviders.find(p => p.code === providerCode);
+    document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
+    document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : 'Buy shipping label';
+    try {
+      const catalog = await api(`/api/providers/${providerCode}/carriers`);
+      if (currentOrder?.id !== order.id || providerSelect.value !== providerCode) return;
+      function options(select, rows, value) {
+        select.replaceChildren();
+        for (const row of [{code: '', name: 'Choose…'}, ...rows]) {
+          const option = document.createElement('option'); option.value = row.code; option.textContent = row.name; select.append(option);
+        }
+        select.value = value || '';
+      }
+      function updateCarrier(restoreValues = false) {
+        const carrier = catalog.carriers.find(c => c.code === carrierSelect.value);
+        const scope = order.recipient.country === 'CA' ? 'international' : 'domestic';
+        options(serviceSelect, (carrier?.services || []).filter(s => s[scope] !== false), restoreValues ? s.service_code : '');
+        options(packageSelect, carrier?.packages || [], restoreValues ? s.package_code : '');
+      }
+      options(carrierSelect, catalog.carriers, restore ? s.carrier_code : '');
+      updateCarrier(restore);
+      carrierSelect.onchange = () => updateCarrier(false);
+    } catch (error) { document.querySelector('#validation-result').textContent = error.message; }
+  }
+  providerSelect.onchange = () => refreshCatalog(false);
+  refreshCatalog(true);
   field(shipping, 'shipping.ship_date', 'Ship date', s.ship_date, null, 'date');
   field(shipping, 'shipping.timezone', 'Timezone (e.g. America/Chicago)', s.timezone);
   field(shipping, 'shipping.residential', 'Recipient address type', s.residential, [['true', 'Residential'], ['false', 'Commercial']]);
@@ -121,7 +153,7 @@ async function saveConfiguration() {
   if (!currentOrder) return;
   const origin = {};
   for (const input of document.querySelectorAll('#origin-fields input')) origin[input.name.split('.')[1]] = input.value;
-  const shipping = { provider: 'fake' };
+  const shipping = {};
   for (const input of document.querySelectorAll('#shipping-fields input, #shipping-fields select')) shipping[input.name.split('.')[1]] = input.value;
   shipping.ship_date = shipping.ship_date || null;
   shipping.residential = shipping.residential === '' ? null : shipping.residential === 'true';
@@ -148,7 +180,7 @@ document.querySelector('#validate-order').addEventListener('click', async () => 
     const order = await saveConfiguration();
     const result = await api(`/api/orders/${order.id}/validate`, { method: 'POST', headers: { 'X-CSRF-Token': csrf } });
     target.replaceChildren();
-    if (result.valid) message(target, 'Ready for a simulated purchase. No live carrier is connected.');
+    if (result.valid) message(target, result.mode === 'simulation' ? 'Ready for a simulated purchase — not usable postage.' : 'Required fields are complete. Review the shipment before buying postage.');
     for (const issue of result.issues) message(target, `${issue.field}: ${issue.message}`);
   } catch (error) { target.textContent = error.message; }
 });
@@ -161,6 +193,8 @@ document.querySelector('#create-label').addEventListener('click', async event =>
   button.disabled = true;
   const target = document.querySelector('#purchase-result');
   try {
+    const selected = formValue('shipping.provider');
+    if (selected === 'shipstation' && !window.confirm('Buy a real shipping label for this order? This charges your connected carrier account.')) return;
     const order = await saveConfiguration();
     const key = `${order.id}:${order.version}`;
     if (!purchaseTokens.has(key)) purchaseTokens.set(key, crypto.randomUUID());
@@ -168,7 +202,7 @@ document.querySelector('#create-label').addEventListener('click', async event =>
       method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
       body: JSON.stringify({ version: order.version, package_id: order.packages[0].id, request_token: purchaseTokens.get(key), confirm_purchase: true })
     });
-    target.textContent = `SIMULATION — NOT VALID POSTAGE. Attempt ${attempt.id}: ${attempt.state}. ${attempt.labels.map(l => l.tracking_number).join(', ')}`;
+    target.textContent = ` ${attempt.mode === 'simulation' ? 'SIMULATION — NOT VALID POSTAGE.' : 'ShipStation purchase.'} Attempt ${attempt.id}: ${attempt.state}. ${attempt.labels.map(l => l.tracking_number).join(', ')}`;
   } catch (error) { target.textContent = error.message; }
   finally { button.disabled = false; }
 });

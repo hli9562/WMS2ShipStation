@@ -2,7 +2,7 @@
 
 Local web workspace for manually exported XLWMS orders. Development is tracked in [GitHub issues](https://github.com/hli9562/WMS2ShipStation/issues).
 
-Current checkpoint: Docker application, migrations, XLSX import and order preview, duplicate detection, per-order configuration and readiness validation. Simulated label creation is available; live postage purchase is not connected yet.
+Current checkpoint: Docker application, migrations, XLSX import and order preview, duplicate detection, per-order configuration and readiness validation. Simulated labels and the ShipStation V1 adapter are available. Live purchasing is disabled by default.
 
 ## Run with Docker
 
@@ -78,7 +78,7 @@ API clients send raw XLSX bytes to `POST /api/imports?filename=export.xlsx`, wit
 
 ## Configure an order
 
-Select an imported order to enter its complete Katy warehouse/contact address (also used for returns), shipping options, and applicable Canada customs information. Save configuration or select **Check readiness**. Missing values, incompatible carrier choices, stale edits and existing WMS tracking prevent readiness. All fields are configured per order. Carrier choices are explicitly simulated until the live provider adapter is implemented. Current Canada validation requires USD values, item quantity matching and a 6–10 digit HS code; duties billing is recipient-only in this initial scope. This is an application eligibility check, not address certification or legal/customs advice.
+Select an imported order to enter its complete Katy warehouse/contact address (also used for returns), shipping options, and applicable Canada customs information. Save configuration or select **Check readiness**. Missing values, incompatible carrier choices, stale edits and existing WMS tracking prevent readiness. All fields are configured per order. Choose the simulated provider or, when configured, a ShipStation live account. Current Canada validation requires USD values, item quantity matching and a 6–10 digit HS code; duties billing is recipient-only in this initial scope. This is an application eligibility check, not address certification or legal/customs advice.
 
 ## Simulated label creation and recovery
 
@@ -87,3 +87,13 @@ After saving complete per-order configuration, select **Create simulated label**
 Purchase attempts persist before transmission. A timeout/crash becomes `uncertain` and blocks another purchase; an explicit provider rejection becomes `failed` and can be retried. A confirmed purchase with a missing PDF stays purchased and must have its existing artifact recovered. Reprinting and PDF download are added in issue #6.
 
 `GET /api/label-attempts/{id}` exposes status and events. An operator who has investigated the provider outcome may submit `POST /api/label-attempts/{id}/reconcile` with `outcome` (`confirmed_not_purchased` or `purchased`) and an evidence explanation (at least 20 characters). Confirmed purchases also require `shipment_id` and `tracking`. Only uncertain attempts are eligible; no force-purchase bypass exists. Do not include secrets in evidence. Interrupted prepared/sending attempts become uncertain on local startup.
+
+## ShipStation account setup
+
+Copy `.env.example` to `.env`, enter `SHIPSTATION_API_KEY` and `SHIPSTATION_API_SECRET` locally, and recreate the application container with `docker compose up -d`. Native development can load that file with `uv run --env-file .env python -m wms2ship`. Never send credentials in chat, issues, logs, or commits.
+
+Select ShipStation in the order form to discover connected carriers, services and package types. Discovery checks for an active Manual Store. This initial direct-label integration uses each carrier's primary account; selection of secondary accounts is not supported. International/domestic service flags filter incompatible choices; carrier-specific rules can still cause a validation rejection. WMS/platform references remain in this app and are not assumed to appear on a standalone provider label.
+
+Leave `WMS_ENABLE_LIVE_PURCHASE=false` while reviewing and configuring. When ready for an actual paid shipment, set it to `true`, recreate the container, review the order, and explicitly confirm **Buy shipping label**. There is no automatic paid test or automatic label creation on import. The adapter calls only the V1 direct-label endpoint, not ShipStation order creation.
+
+The implementation has been tested with HTTP mocks, not your live account. Credentials, account entitlement, carrier restrictions, returned label layout and Canadian customs output require operator acceptance. No automatic purchase retry is implemented, including after rate limiting/server errors; uncertain results require investigation.

@@ -344,6 +344,8 @@ def create_label_attempt(order_id: str, payload: CreateAttempt, request: Request
     provider = request.app.state.providers.get(code)
     if provider is None:
         raise HTTPException(400, "Provider is not available.")
+    if provider.mode == "live" and not provider.enable_live:
+        raise HTTPException(400, "Live purchase is disabled in server configuration.")
     return purchase(
         request.app.state.engine, request.app.state.settings, order_id, payload, provider
     )
