@@ -28,12 +28,8 @@
       <button type="button" id="tab-settings" role="tab" aria-controls="panel-settings" aria-selected="false" tabindex="-1">Settings</button>
     </div>
     <section id="panel-import" role="tabpanel" aria-labelledby="tab-import" tabindex="0">
-      <h2>Import WMS orders</h2>
-      <p>Select an XLSX export. Importing only previews and saves order data; it never buys postage.</p>
-      <p><a href="/sample.xlsx">Download a synthetic US test export</a> — simulation only, never ship it.</p>
       <form id="import-form">
-        <label for="workbook">WMS export (.xlsx)</label>
-        <input type="file" id="workbook" accept=".xlsx" required>
+        <input type="file" id="workbook" aria-label="Choose WMS XLSX export" accept=".xlsx" required>
         <button type="submit">Import and preview</button>
       </form>
       <div id="import-result"></div>
