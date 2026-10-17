@@ -20,6 +20,18 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose up --build -d --wait
       - run: curl --fail http://localhost:8080/health
+      - name: End-to-end simulated workflow and 99-order import
+        run: docker compose exec -T app python - < scripts/smoke.py
+      - name: Verify container backup and restore
+        run: |
+          docker compose stop app
+          docker compose run --rm -T --no-deps app python -m wms2ship.backup create - > /tmp/wms-backup.tar.gz
+          task_image=$(docker compose images -q app | head -n1)
+          task_volume="wms-restore-${GITHUB_RUN_ID}"
+          docker run --rm -i -v "$task_volume:/data" "$task_image" python -m wms2ship.backup restore - < /tmp/wms-backup.tar.gz
+          docker run --rm -v "$task_volume:/data" "$task_image" python -c "import sqlite3,pathlib; c=sqlite3.connect('/data/app.sqlite3'); assert c.execute('SELECT count(*) FROM orders').fetchone()[0]>=99; assert c.execute('SELECT count(*) FROM labels').fetchone()[0]>=1; assert list(pathlib.Path('/data/labels').glob('*.pdf'))"
+          docker volume rm "$task_volume"
+          docker compose start app
       - name: Verify volume survives container recreation
         run: |
           docker compose exec -T app python -c "import sqlite3; c=sqlite3.connect('/data/app.sqlite3'); c.execute(\"INSERT INTO orders(id,wms_order_no,created_at,updated_at) VALUES('ci','CI-TEST','now','now')\"); c.commit(); open('/data/labels/ci.txt','w').write('persistent')"

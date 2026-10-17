@@ -1,6 +1,6 @@
 # Development plan — first local test release
 
-Updated: 2026-10-17. Status: ready for implementation planning; application code has not started.
+Updated: 2026-10-17. Status: issues #1–#6 implemented and verified; issue #7 is in final automated and operator acceptance.
 
 References: [requirements](../PDR.md), [architecture and stack](ARCHITECTURE.md), [database](DATABASE.md).
 
@@ -25,7 +25,7 @@ The first release supports unambiguous single-package orders. Ambiguous multi-pa
 | **Planning allowance (25%)** | Integration/debugging and feedback | **10–16** |
 | **First test release estimate** | | **50–80 hours** |
 
-These are rough effort estimates, not a delivery commitment or an estimate of uninterrupted agent runtime. With one developer contributing about eight focused hours per working day and prompt operator feedback, budget approximately 7–10 working days (roughly 1½–2 working weeks) from implementation start. No calendar delivery date is committed. Re-estimate after the first import slice and provider contract check.
+These are the original human engineering planning estimates, not Codex wall-clock estimates or a delivery commitment. Codex implementation is tracked by working checkpoints and verification results. With one developer contributing about eight focused hours per working day and prompt operator feedback, budget approximately 7–10 working days (roughly 1½–2 working weeks) from implementation start. No calendar delivery date is committed. Re-estimate after the first import slice and provider contract check.
 
 ## Testable checkpoints
 
@@ -70,3 +70,9 @@ Implementation issues are created in `hli9562/WMS2ShipStation`. The table below 
 | [DEV-05](https://github.com/hli9562/WMS2ShipStation/issues/5) | ShipStation V1 direct-label adapter and account discovery | 6–10 |
 | [DEV-06](https://github.com/hli9562/WMS2ShipStation/issues/6) | Letter PDF printing, shipment history and manual WMS tracking workflow | 4–6 |
 | [DEV-07](https://github.com/hli9562/WMS2ShipStation/issues/7) | Local Docker test release, recovery checks and operator guide | 6–10 |
+
+## Implementation progress
+
+Issues [#1](https://github.com/hli9562/WMS2ShipStation/issues/1) through [#6](https://github.com/hli9562/WMS2ShipStation/issues/6) have been implemented sequentially, with native tests and Docker CI passing for each checkpoint. The current app supports import, per-order configuration, simulated purchases, the mock-tested ShipStation V1 adapter, purchase recovery safeguards, Letter PDFs and history.
+
+Issue [#7](https://github.com/hli9562/WMS2ShipStation/issues/7) tracks the Docker end-to-end smoke test, 99-order import, backup/restore, and [operator acceptance](OPERATIONS.md). Final acceptance remains open until the operator verifies the local printer and, if desired, explicitly performs a real paid-label check with their account. No live shipping API calls have been made during development.

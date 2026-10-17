@@ -27,7 +27,7 @@ async function loadOrders() {
     button.addEventListener('click', async () => {
       try {
         const order = await api(`/api/orders/${row.id}`);
-        showConfiguration(order);
+        await showConfiguration(order);
         document.querySelector('#preview-panel').hidden = false;
         document.querySelector('#preview-panel').scrollIntoView({ behavior: 'smooth' });
       } catch (error) { status.textContent = error.message; }
@@ -60,7 +60,10 @@ loadOrders().catch(error => { status.textContent = error.message; });
 
 let currentOrder;
 let availableProviders = [{code: 'fake', mode: 'simulation', live_purchase_enabled: false}];
-api('/api/providers').then(data => { availableProviders = data; }).catch(error => { status.textContent = error.message; });
+const providersReady = api('/api/providers').then(data => {
+  availableProviders = data;
+  status.textContent = data.some(p => p.mode === 'live') ? 'Workspace ready. ShipStation credentials configured; verify account access in the order form.' : 'Workspace ready. Simulation provider available.';
+}).catch(error => { status.textContent = error.message; });
 function field(parent, name, label, value = '', options = null, type = 'text') {
   const wrapper = document.createElement('label');
   wrapper.textContent = label;
@@ -79,7 +82,8 @@ function field(parent, name, label, value = '', options = null, type = 'text') {
   parent.append(wrapper);
   return input;
 }
-function showConfiguration(order) {
+async function showConfiguration(order) {
+  await providersReady;
   currentOrder = order;
   document.querySelector('#order-preview').textContent = JSON.stringify(order, null, 2);
   document.querySelector('#order-summary').textContent = `${order.wms_order_no} · ${order.recipient.country} · ${order.packages[0]?.weight_g || '?'} g`;
@@ -103,7 +107,7 @@ function showConfiguration(order) {
     document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : 'Buy shipping label';
     try {
       const catalog = await api(`/api/providers/${providerCode}/carriers`);
-      if (currentOrder?.id !== order.id || providerSelect.value !== providerCode) return;
+      if (currentOrder?.id !== order.id || currentOrder?.version !== order.version || providerSelect.value !== providerCode) return;
       function options(select, rows, value) {
         select.replaceChildren();
         for (const row of [{code: '', name: 'Choose…'}, ...rows]) {
@@ -166,7 +170,7 @@ async function saveConfiguration() {
     })) };
   }
   const order = await api(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' }, body: JSON.stringify({ version: currentOrder.version, origin, shipping, customs }) });
-  showConfiguration(order);
+  await showConfiguration(order);
   return order;
 }
 document.querySelector('#configuration-form').addEventListener('submit', async event => {

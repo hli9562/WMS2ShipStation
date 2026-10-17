@@ -4,7 +4,9 @@ import argparse
 import hashlib
 import io
 import json
+import shutil
 import sqlite3
+import sys
 import tarfile
 import tempfile
 from pathlib import Path
@@ -88,7 +90,20 @@ def main():
     parser.add_argument("archive", type=Path)
     args = parser.parse_args()
     operation = create_backup if args.action == "create" else restore_backup
-    operation(Settings().data_dir, args.archive)
+    data_dir = Settings().data_dir
+    if str(args.archive) == "-":
+        with tempfile.TemporaryDirectory() as temp:
+            archive = Path(temp) / "checkpoint.tar.gz"
+            if args.action == "create":
+                operation(data_dir, archive)
+                with archive.open("rb") as stream:
+                    shutil.copyfileobj(stream, sys.stdout.buffer)
+            else:
+                with archive.open("wb") as stream:
+                    shutil.copyfileobj(sys.stdin.buffer, stream)
+                operation(data_dir, archive)
+    else:
+        operation(data_dir, args.archive)
 
 
 if __name__ == "__main__":

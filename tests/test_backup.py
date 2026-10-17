@@ -27,3 +27,29 @@ def test_backup_restore_preserves_history_and_artifacts(tmp_path):
         restore_backup(restored, archive)
     with pytest.raises(ValueError, match="new backup"):
         create_backup(data, archive)
+
+
+def test_cli_backup_stream_roundtrip(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    data = tmp_path / "original"
+    migrate(Settings(data_dir=data))
+    (data / "labels" / "label.pdf").write_bytes(b"synthetic test data")
+    env = {**os.environ, "WMS_DATA_DIR": str(data)}
+    archived = subprocess.run(
+        [sys.executable, "-m", "wms2ship.backup", "create", "-"],
+        env=env,
+        capture_output=True,
+        check=True,
+    ).stdout
+    restored = tmp_path / "restored"
+    subprocess.run(
+        [sys.executable, "-m", "wms2ship.backup", "restore", "-"],
+        env={**env, "WMS_DATA_DIR": str(restored)},
+        input=archived,
+        capture_output=True,
+        check=True,
+    )
+    assert (restored / "labels" / "label.pdf").read_bytes() == b"synthetic test data"

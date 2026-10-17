@@ -171,3 +171,54 @@ def test_live_disabled_by_default_and_no_secret_in_http_output(tmp_path):
         )
         assert result.status_code == 400
         assert "disabled" in result.json()["detail"]
+
+
+def test_live_adapter_end_to_end_uses_mock_transport_only(tmp_path):
+    calls = []
+
+    def handler(request):
+        calls.append((request.method, request.url.path))
+        if request.method == "POST":
+            assert request.url.path == "/shipments/createlabel"
+            body = json.loads(request.content)
+            assert body["shipTo"]["country"] == "CA"
+            return httpx.Response(
+                200,
+                json={
+                    "shipmentId": 123,
+                    "trackingNumber": "MOCK-ONLY-TRACKING",
+                    "shipmentCost": 1,
+                    "labelData": base64.b64encode(demo_pdf()).decode(),
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "/stores": [{"marketplaceId": 0, "active": True}],
+                "/carriers": [{"code": "demo", "name": "Mock carrier", "primary": True}],
+                "/carriers/listservices": [
+                    {"code": "demo_ground", "name": "Mock service", "international": True}
+                ],
+                "/carriers/listpackages": [{"code": "demo_parcel", "name": "Mock parcel"}],
+            }[request.url.path],
+        )
+
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        client.app.state.providers["shipstation"] = ShipStationProvider(
+            "mock-key", "mock-secret", True, httpx.MockTransport(handler)
+        )
+        order_id, headers, payload = setup_order(client)
+        order = client.get(f"/api/orders/{order_id}").json()
+        config = draft(order)
+        config["shipping"]["provider"] = "shipstation"
+        saved = client.patch(f"/api/orders/{order_id}", json=config, headers=headers).json()
+        payload["version"] = saved["version"]
+        result = client.post(
+            f"/api/orders/{order_id}/label-attempts", json=payload, headers=headers
+        )
+        assert result.json()["state"] == "purchased", result.text
+        assert result.json()["labels"][0]["tracking_number"] == "MOCK-ONLY-TRACKING"
+        assert len([call for call in calls if call[0] == "POST"]) == 1
+        label = result.json()["labels"][0]["id"]
+        assert client.get(f"/api/labels/{label}/pdf").status_code == 200
+        assert len([call for call in calls if call[0] == "POST"]) == 1

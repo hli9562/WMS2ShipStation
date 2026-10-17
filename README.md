@@ -41,9 +41,11 @@ Default data location is `./data`; override with `WMS_DATA_DIR`. Native executio
 Stop the application before copying the whole data directory/volume so the database and label files represent one checkpoint. For Docker, from the repository directory:
 
 ```sh
+umask 077
+set -o noclobber
 mkdir -p backups
 docker compose stop app
-docker compose run --rm --no-deps -v "$PWD/backups:/backup" app python -m wms2ship.backup create /backup/checkpoint.tar.gz
+docker compose run --rm -T --no-deps app python -m wms2ship.backup create - > backups/checkpoint.tar.gz
 docker compose start app
 ```
 
@@ -53,7 +55,7 @@ Restore only into an empty data volume/directory; never overwrite existing histo
 
 ```sh
 docker compose stop app
-docker compose run --rm --no-deps -v "$PWD/backups:/backup:ro" app python -m wms2ship.backup restore /backup/checkpoint.tar.gz
+docker compose run --rm -T --no-deps app python -m wms2ship.backup restore - < backups/checkpoint.tar.gz
 docker compose start app
 ```
 

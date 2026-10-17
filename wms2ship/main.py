@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
@@ -17,6 +17,7 @@ from wms2ship.labels import router as label_router
 from wms2ship.providers import FakeProvider
 from wms2ship.purchases import recover_interrupted
 from wms2ship.purchases import router as purchase_router
+from wms2ship.sample import sample_workbook
 from wms2ship.shipstation import ProviderUnavailable, ShipStationProvider
 
 ROOT = Path(__file__).parent
@@ -94,6 +95,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             }
             for p in request.app.state.providers.values()
         ]
+
+    @app.get("/sample.xlsx")
+    def sample():
+        return Response(
+            sample_workbook(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="synthetic-demo.xlsx"'},
+        )
 
     @app.get("/health")
     def health(request: Request):
