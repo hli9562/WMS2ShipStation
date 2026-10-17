@@ -10,10 +10,11 @@
 </head>
 <body>
   <main>
-    <p class="eyebrow">KATY WAREHOUSE · LOCAL WORKSPACE</p>
-    <h1>WMS2ShipStation</h1>
-    <p>Import WMS orders, review shipping details, and keep your label history in one place.</p>
-    <p id="status" role="status" aria-live="polite">Workspace ready. No shipping provider connected.</p>
+    <header class="app-header">
+      <h1>WMS2ShipStation</h1>
+      <span class="eyebrow">Katy warehouse · Local workspace</span>
+      <p id="status" role="status" aria-live="polite">Workspace ready. No shipping provider connected.</p>
+    </header>
     <div class="tabs" role="tablist" aria-label="Workspace">
       <button type="button" id="tab-import" role="tab" aria-controls="panel-import" aria-selected="true" tabindex="0">WMS orders</button>
       <button type="button" id="tab-orders" role="tab" aria-controls="panel-orders" aria-selected="false" tabindex="-1">Shipping details</button>
@@ -42,23 +43,35 @@
         <button type="button" data-open-tab="import">Choose a WMS order</button>
       </section>
       <section id="preview-panel" hidden>
-        <h2>Review shipping details</h2>
-        <button type="button" data-open-tab="import">Choose another order</button>
+        <div class="order-heading">
+          <div><h2>Shipping details</h2><div id="order-summary"></div></div>
+          <button type="button" data-open-tab="import">Choose another order</button>
+        </div>
         <p id="configuration-mode">Simulation only — carrier choices do not buy usable postage.</p>
-        <div id="order-summary"></div>
         <form id="configuration-form">
-          <h3>Warehouse / return address</h3>
-          <div id="shipper-choices"></div>
-          <p>Selecting a contact copies its details below. You can edit them for this order.</p>
-          <div id="origin-fields" class="fields"></div>
-          <h3>Shipping options</h3>
-          <div id="shipping-fields" class="fields"></div>
-          <h3 id="customs-heading">Canada customs</h3>
-          <div id="customs-fields" class="fields"></div>
-          <button type="submit">Save configuration</button>
-          <button type="button" id="validate-order">Check readiness</button>
+          <div class="shipper-card">
+            <h3>Shipper / return address</h3>
+            <div id="shipper-choices" class="fields"></div>
+            <p id="origin-summary"></p>
+            <details id="origin-details">
+              <summary>Edit shipper details</summary>
+              <div id="origin-fields" class="fields"></div>
+            </details>
+          </div>
+          <div class="shipping-card">
+            <h3>Shipping options</h3>
+            <div id="shipping-fields" class="fields"></div>
+          </div>
+          <div id="customs-section" class="customs-card" hidden>
+            <h3 id="customs-heading">Canada customs</h3>
+            <div id="customs-fields" class="fields"></div>
+          </div>
+          <div id="configuration-actions">
+            <button type="submit">Save configuration</button>
+            <button type="button" id="validate-order">Check readiness</button>
+            <button type="button" id="create-label">Create simulated label</button>
+          </div>
         </form>
-        <button type="button" id="create-label">Create simulated label</button>
         <div id="purchase-result" role="status" aria-live="polite"></div>
         <div id="validation-result" role="status" aria-live="polite"></div>
         <details><summary>Imported data</summary><pre id="order-preview"></pre></details>

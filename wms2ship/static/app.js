@@ -110,6 +110,7 @@ function field(parent, name, label, value = '', options = null, type = 'text') {
   if (options) {
     const group = document.createElement('fieldset');
     group.className = 'radio-field';
+    group.dataset.field = name;
     message(group, label, 'legend');
     const choices = document.createElement('div');
     choices.className = 'radio-options';
@@ -138,6 +139,7 @@ function field(parent, name, label, value = '', options = null, type = 'text') {
     return control;
   }
   const wrapper = document.createElement('label');
+  wrapper.dataset.field = name;
   wrapper.textContent = label;
   const input = document.createElement('input');
   input.name = name;
@@ -162,8 +164,9 @@ async function showConfiguration(order) {
     field(origin, `origin.${key}`, label, order.origin?.[key]);
   }
   renderShipperChoices();
+  updateOriginSummary(true);
   const s = order.shipping || {};
-  const providerSelect = field(shipping, 'shipping.provider', 'Shipping provider', s.provider || 'fake', availableProviders.map(p => [p.code, p.mode === 'simulation' ? 'Simulation — no postage' : p.mode === 'test' ? 'ShipStation USPS test label — not valid postage' : 'ShipStation V1 — paid labels']));
+  const providerSelect = field(shipping, 'shipping.provider', 'Shipping provider', s.provider || 'fake', availableProviders.map(p => [p.code, p.mode === 'simulation' ? 'Simulation — no postage' : p.mode === 'test' ? 'USPS test label' : 'ShipStation — paid labels']));
   const carrierSelect = field(shipping, 'shipping.carrier_code', 'Carrier', s.carrier_code, []);
   const serviceSelect = field(shipping, 'shipping.service_code', 'Service', s.service_code, []);
   const packageSelect = field(shipping, 'shipping.package_code', 'Package type', s.package_code, []);
@@ -201,18 +204,37 @@ async function showConfiguration(order) {
   providerSelect.onchange = () => refreshCatalog(false);
   refreshCatalog(true);
   field(shipping, 'shipping.ship_date', 'Ship date', s.ship_date, null, 'date');
-  field(shipping, 'shipping.timezone', 'Timezone (e.g. America/Chicago)', s.timezone);
+  field(shipping, 'shipping.timezone', 'Timezone', s.timezone);
   field(shipping, 'shipping.residential', 'Recipient address type', s.residential, [['true', 'Residential'], ['false', 'Commercial']]);
-  field(shipping, 'shipping.insurance', 'Insurance', s.insurance, [['none', 'None'], ['carrier', 'Carrier'], ['shipsurance', 'Shipsurance'], ['xcover', 'XCover'], ['parcelguard', 'ParcelGuard'], ['provider', 'Other insurance (billed outside ShipStation)']]);
-  field(shipping, 'shipping.insured_value', 'Insured value (USD, if insured)', s.insured_value);
-  for (const [key, label] of [['saturday_delivery', 'Saturday delivery'], ['non_machinable', 'Non-machinable handling'], ['contains_alcohol', 'Contains alcohol']]) {
-    field(shipping, `shipping.${key}`, label, String(s[key] ?? false), [['false', 'No'], ['true', 'Yes']]);
+  const extras = document.createElement('details');
+  extras.className = 'shipping-extras';
+  const extrasSummary = message(extras, '', 'summary');
+  const extraFields = document.createElement('div');
+  extraFields.className = 'fields';
+  extras.append(extraFields);
+  shipping.append(extras);
+  field(extraFields, 'shipping.insurance', 'Insurance', s.insurance, [['none', 'None'], ['carrier', 'Carrier'], ['shipsurance', 'Shipsurance'], ['xcover', 'XCover'], ['parcelguard', 'ParcelGuard'], ['provider', 'Other insurance (billed outside ShipStation)']]);
+  field(extraFields, 'shipping.insured_value', 'Insured value (USD, if insured)', s.insured_value);
+  const addOns = [['saturday_delivery', 'Saturday delivery'], ['non_machinable', 'Non-machinable handling'], ['contains_alcohol', 'Contains alcohol']];
+  for (const [key, label] of addOns) {
+    field(extraFields, `shipping.${key}`, label, String(s[key] ?? false), [['false', 'No'], ['true', 'Yes']]);
   }
-  message(shipping, availableProviders.some(p => p.code === 'shipstation') ? 'Carrier, service, and package choices come from the selected provider account.' : 'Only Simulation is configured. Connect ShipStation credentials to load real carrier, service, and package choices.');
-  message(shipping, 'Insurance and additional services depend on your connected carrier, service, and account. Extra charges may apply. Other insurance is arranged and billed outside ShipStation.');
+  function summarizeExtras() {
+    const selected = extraFields.querySelector('input[name="shipping.insurance"]:checked');
+    const insuranceName = selected?.parentElement.textContent || 'Not selected';
+    const enabled = addOns.filter(([key]) => extraFields.querySelector(`input[name="shipping.${key}"]:checked`)?.value === 'true').map(([, label]) => label);
+    extrasSummary.textContent = `Insurance: ${insuranceName} · Additional services: ${enabled.join(', ') || 'None'}`;
+  }
+  extraFields.addEventListener('change', summarizeExtras);
+  extras.open = !s.insurance || s.insurance !== 'none' || addOns.some(([key]) => s[key]);
+  summarizeExtras();
+  message(extraFields, 'Availability and extra charges depend on the carrier and account. Other insurance is billed outside ShipStation.');
+  const catalogNote = message(shipping, availableProviders.some(p => p.code === 'shipstation') ? 'Carrier choices come from your connected account.' : 'Simulation only. Connect ShipStation credentials for real carrier choices.');
+  catalogNote.className = 'field-note';
   const canadian = order.recipient.country === 'CA';
   document.querySelector('#customs-heading').hidden = !canadian;
   customs.hidden = !canadian;
+  document.querySelector('#customs-section').hidden = !canadian;
   if (canadian) {
     field(customs, 'shipping.duties_payer', 'Duties payer', s.duties_payer, [['recipient', 'Recipient']]);
     field(customs, 'customs.contents', 'Contents type', order.customs?.contents, ['merchandise', 'documents', 'gift', 'returned_goods', 'sample'].map(code => [code, code]));
@@ -352,11 +374,15 @@ function renderShipperChoices() {
     for (const key of Object.keys(addressLabels)) {
       document.querySelector('#configuration-form').elements.namedItem(`origin.${key}`).value = contact.address[key] || '';
     }
+    updateOriginSummary(true);
     document.querySelector('#validation-result').textContent = 'Shipper contact applied. Save configuration to keep it on this order.';
   };
   // A manually edited address is no longer an exact copy of a saved contact.
   document.querySelectorAll('#origin-fields input').forEach(input => {
-    input.oninput = () => container.querySelectorAll('input[type="radio"]').forEach(radio => { radio.checked = false; });
+    input.oninput = () => {
+      container.querySelectorAll('input[type="radio"]').forEach(radio => { radio.checked = false; });
+      updateOriginSummary();
+    };
   });
 }
 async function loadContacts() {
@@ -487,3 +513,18 @@ document.querySelector('#review-filters').addEventListener('change', () => {
 document.querySelector('#review-more').onclick = () => loadReview(false);
 document.querySelector('#tab-review').addEventListener('click', () => loadReview(true));
 loadReview(true);
+
+
+function updateOriginSummary(collapse = false) {
+  const value = key => document.querySelector('#configuration-form').elements.namedItem(`origin.${key}`)?.value.trim() || '';
+  const lines = [
+    [value('name'), value('company')].filter(Boolean).join(' · '),
+    [value('address1'), value('address2')].filter(Boolean).join(', '),
+    [value('city'), value('state'), value('postal'), value('country')].filter(Boolean).join(' '),
+    value('phone'),
+  ].filter(Boolean);
+  document.querySelector('#origin-summary').textContent = lines.join('\n') || 'Choose a saved shipper or enter the return address.';
+  const complete = ['name', 'phone', 'address1', 'city', 'state', 'postal', 'country'].every(key => value(key));
+  if (collapse) document.querySelector('#origin-details').open = !complete;
+}
+document.querySelector('#origin-fields').addEventListener('input', () => updateOriginSummary());
