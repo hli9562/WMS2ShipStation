@@ -102,8 +102,18 @@
     <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" hidden>
       <h2>Shipment history</h2>
       <p>Use live tracking numbers to update WMS manually. Simulation and USPS test labels are not valid for shipping.</p>
-      <button type="button" id="refresh-history">Refresh history</button>
-      <div id="history"></div>
+      <form id="history-filters">
+        <div class="fields">
+          <label>Order, tracking, status, provider, or attempt<input type="search" name="search" placeholder="e.g. PM-*, *1234, USPS-TEST-??" maxlength="200"></label>
+          <label>From (your local time)<input type="datetime-local" name="start" step="1"></label>
+          <label>Through (your local time)<input type="datetime-local" name="end" step="1"></label>
+        </div>
+        <p class="field-note">Use * for any characters and ? for one character. Plain text finds partial matches. Time boundaries are inclusive.</p>
+        <button type="submit" id="refresh-history">Apply filters / refresh</button>
+        <button type="button" id="clear-history-filters">Clear filters</button>
+      </form>
+      <p id="history-status" role="status" aria-live="polite"></p>
+      <div class="table-scroll" tabindex="0" aria-label="Scrollable label history"><table><caption>Labels and purchase attempts</caption><thead><tr><th scope="col">Order</th><th scope="col">Created (local)</th><th scope="col">Mode</th><th scope="col">Status</th><th scope="col">Provider</th><th scope="col">Tracking</th><th scope="col">Charge</th><th scope="col">Action required</th><th scope="col">Labels</th><th scope="col">Attempt ID</th></tr></thead><tbody id="history"></tbody></table></div>
       <button type="button" id="more-history" hidden>Load more history</button>
     </section>
     <section id="panel-review" role="tabpanel" aria-labelledby="tab-review" tabindex="0" hidden>

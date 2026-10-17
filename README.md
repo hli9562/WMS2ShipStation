@@ -187,3 +187,18 @@ Localhost and HTTPS are supported; other browsers can use the normal file picker
 Five committed synthetic XLSX files and step-by-step acceptance checks are in
 [tests/fixtures/pm](tests/fixtures/pm/README.md). These tests work with Simulation
 and do not require ShipStation credentials.
+
+### History filters
+
+**History** displays labels and attempts in a table with tracking, charges,
+exceptions, and Letter/original PDF links. Search across order/platform
+references, tracking, attempt/label IDs, provider, mode, status, or exception.
+`*` matches any number of characters; `?` matches one character. For example,
+`PM-*` matches an order prefix and `*1234` a tracking suffix. Plain text performs
+a partial match; `%` and `_` are treated literally. Matching ignores ASCII case.
+
+Use **From** and **Through** for an inclusive date/time window in your computer's
+local timezone. The app converts these to timezone-aware timestamps for server
+filtering. **Apply filters / refresh** starts at the first matching page;
+**Load more history** uses the same filters. **Clear filters** restores all
+history. Filters apply before pagination, including older records.

@@ -1,5 +1,6 @@
 import hashlib
 import io
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -129,10 +130,51 @@ def label_pdf(
 def history(
     request: Request,
     order_id: str | None = None,
+    search: str = Query("", max_length=200),
+    start: datetime | None = None,
+    end: datetime | None = None,
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
 ):
-    where = "WHERE a.order_id=:order" if order_id else ""
+    for value in (start, end):
+        if value is not None and value.utcoffset() is None:
+            raise HTTPException(422, "History times must include a timezone.")
+    if start and end and start > end:
+        raise HTTPException(422, "Start time must be on or before end time.")
+    clauses = []
+    params = {"order": order_id, "limit": limit, "offset": offset}
+    if order_id:
+        clauses.append("a.order_id=:order")
+    if start:
+        clauses.append("julianday(a.created_at)>=julianday(:start)")
+        params["start"] = start.isoformat()
+    if end:
+        clauses.append("julianday(a.created_at)<=julianday(:end)")
+        params["end"] = end.isoformat()
+    if search.strip():
+        value = search.strip()
+        pattern = "".join(
+            {"!": "!!", "%": "!%", "_": "!_", "*": "%", "?": "_"}.get(c, c) for c in value
+        )
+        if not any(c in value for c in "*?"):
+            pattern = "%" + pattern + "%"
+        params["search"] = pattern
+        fields = [
+            "o.wms_order_no",
+            "o.platform_reference",
+            "l.tracking_number",
+            "a.id",
+            "l.id",
+            "a.state",
+            "a.error_code",
+            "p.provider_code",
+            "CASE p.provider_code WHEN 'fake' THEN 'simulation' "
+            "WHEN 'shipstation_test' THEN 'test' ELSE 'live' END",
+        ]
+        clauses.append(
+            "(" + " OR ".join(f"COALESCE({f},'') LIKE :search ESCAPE '!'" for f in fields) + ")"
+        )
+    where = "WHERE " + " AND ".join(clauses) if clauses else ""
     with request.app.state.engine.connect() as db:
         rows = (
             db.execute(
@@ -147,7 +189,7 @@ def history(
                     + where
                     + " ORDER BY a.created_at DESC,a.id LIMIT :limit OFFSET :offset"
                 ),
-                {"order": order_id, "limit": limit, "offset": offset},
+                params,
             )
             .mappings()
             .all()

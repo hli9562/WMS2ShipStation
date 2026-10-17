@@ -326,31 +326,69 @@ document.querySelector('#create-label').addEventListener('click', async event =>
 });
 
 let historyOffset = 0;
+let historyQuery = new URLSearchParams();
+let historyBusy = false;
 async function loadHistory(reset = false) {
+  if (historyBusy) return;
+  historyBusy = true;
   const target = document.querySelector('#history');
-  if (reset) { historyOffset = 0; target.replaceChildren(); }
-  const rows = await api(`/api/history?offset=${historyOffset}`);
-  if (!rows.length && historyOffset === 0) message(target, 'No label attempts yet.');
-  for (const row of rows) {
-    const card = document.createElement('article');
-    message(card, `${row.wms_order_no} · ${row.mode.toUpperCase()} · ${row.state}`, 'h3');
-    message(card, `Tracking: ${row.tracking_number || 'Not available'} · ${row.created_at}`);
-    message(card, `Attempt: ${row.attempt_id}`);
-    if (row.error_code) message(card, `Action required: ${row.error_code}`);
-    if (row.label_id) {
-      for (const kind of ['letter', 'original']) {
-        const link = message(card, kind === 'letter' ? 'Open Letter PDF / print' : 'Open original PDF', 'a');
-        link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`; link.target = '_blank'; link.rel = 'noopener';
+  const feedback = document.querySelector('#history-status');
+  const more = document.querySelector('#more-history');
+  const refresh = document.querySelector('#refresh-history');
+  more.disabled = refresh.disabled = true;
+  document.querySelector('#clear-history-filters').disabled = true;
+  feedback.textContent = 'Loading history…';
+  try {
+    const query = reset ? new URLSearchParams(new FormData(document.querySelector('#history-filters'))) : new URLSearchParams(historyQuery);
+    if (reset) {
+      for (const [key, value] of [...query.entries()]) {
+        if (!value.trim()) query.delete(key);
+        else if (key === 'start' || key === 'end') query.set(key, new Date(value).toISOString());
       }
     }
-    target.append(card);
+    query.set('offset', reset ? 0 : historyOffset);
+    const rows = await api(`/api/history?${query}`);
+    if (reset) {
+      historyOffset = 0;
+      target.replaceChildren();
+      query.delete('offset');
+      historyQuery = query;
+    }
+    if (!rows.length && historyOffset === 0) {
+      const cell = message(message(target, '', 'tr'), 'No labels or attempts match these filters.', 'td');
+      cell.colSpan = 10;
+    }
+    for (const row of rows) {
+      const tr = message(target, '', 'tr');
+      message(tr, row.wms_order_no, 'td');
+      const created = message(tr, new Date(row.created_at).toLocaleString(), 'td');
+      created.title = row.created_at;
+      for (const value of [row.mode.toUpperCase(), row.state, row.provider_code, row.tracking_number || '—', row.charge_minor == null ? 'Not recorded' : `${(row.charge_minor / 100).toFixed(2)} ${row.currency}`, row.error_code || '—']) message(tr, value, 'td');
+      const links = message(tr, '', 'td');
+      if (row.label_id) {
+        for (const kind of ['letter', 'original']) {
+          const link = message(links, kind === 'letter' ? 'Letter PDF / print' : 'Original PDF', 'a');
+          link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`;
+          link.target = '_blank'; link.rel = 'noopener';
+        }
+      } else links.textContent = '—';
+      message(tr, row.attempt_id, 'td');
+    }
+    historyOffset += rows.length;
+    more.hidden = rows.length < 50;
+    feedback.textContent = `Showing ${historyOffset} matching records.${more.hidden ? '' : ' Load more for older matches.'}`;
+  } catch (error) { feedback.textContent = error.message; }
+  finally {
+    historyBusy = false; more.disabled = refresh.disabled = false;
+    document.querySelector('#clear-history-filters').disabled = false;
   }
-  historyOffset += rows.length;
-  document.querySelector('#more-history').hidden = rows.length < 50;
 }
-document.querySelector('#refresh-history').addEventListener('click', () => loadHistory(true).catch(error => { status.textContent = error.message; }));
-document.querySelector('#more-history').addEventListener('click', () => loadHistory(false).catch(error => { status.textContent = error.message; }));
-loadHistory(true).catch(error => { status.textContent = error.message; });
+document.querySelector('#history-filters').addEventListener('submit', event => { event.preventDefault(); loadHistory(true); });
+document.querySelector('#history-filters').addEventListener('input', () => { document.querySelector('#history-status').textContent = 'Filters changed. Apply filters to update the table.'; });
+document.querySelector('#clear-history-filters').addEventListener('click', () => { document.querySelector('#history-filters').reset(); loadHistory(true); });
+document.querySelector('#more-history').addEventListener('click', () => loadHistory(false));
+document.querySelector('#tab-history').addEventListener('click', () => loadHistory(true));
+loadHistory(true);
 
 const addressLabels = { name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US or United States)' };
 let shipperContacts = [];
