@@ -92,7 +92,7 @@ Purchase attempts persist before transmission. A timeout/crash becomes `uncertai
 
 ## ShipStation account setup
 
-Copy `.env.example` to `.env`, enter `SHIPSTATION_API_KEY` and `SHIPSTATION_API_SECRET` locally, and recreate the application container with `docker compose up -d`. Native development can load that file with `uv run --env-file .env python -m wms2ship`. Never send credentials in chat, issues, logs, or commits.
+Copy `.env.example` to `.env`, enter `SHIPSTATION_API_KEY` and `SHIPSTATION_API_SECRET` locally, and recreate the application container with `docker compose up -d`. Native development automatically loads `.env` from the repository when you run `uv run python -m wms2ship`. Restart the app after changing credentials. Never send credentials in chat, issues, logs, or commits.
 
 Select ShipStation in the order form to discover connected carriers, services and package types. Discovery checks for an active Manual Store. This initial direct-label integration uses each carrier's primary account; selection of secondary accounts is not supported. International/domestic service flags filter incompatible choices; carrier-specific rules can still cause a validation rejection. WMS/platform references remain in this app and are not assumed to appear on a standalone provider label.
 
