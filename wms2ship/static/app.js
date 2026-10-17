@@ -62,7 +62,9 @@ async function loadOrders() {
       try {
         const order = await api(`/api/orders/${row.id}`);
         await showConfiguration(order);
+        document.querySelector('#no-order-selected').hidden = true;
         document.querySelector('#preview-panel').hidden = false;
+        openTab('orders');
         document.querySelector('#preview-panel').scrollIntoView({ behavior: 'smooth' });
       } catch (error) { status.textContent = error.message; }
     });
@@ -99,18 +101,41 @@ const providersReady = api('/api/providers').then(data => {
   status.textContent = data.some(p => p.mode === 'live') ? 'Workspace ready. ShipStation credentials configured; verify account access in the order form.' : 'Workspace ready. Simulation provider available.';
 }).catch(error => { status.textContent = error.message; });
 function field(parent, name, label, value = '', options = null, type = 'text') {
+  if (options) {
+    const group = document.createElement('fieldset');
+    group.className = 'radio-field';
+    message(group, label, 'legend');
+    const choices = document.createElement('div');
+    choices.className = 'radio-options';
+    group.append(choices);
+    parent.append(group);
+    const control = {
+      get value() { return choices.querySelector('input:checked')?.value || ''; },
+      onchange: null,
+      setOptions(rows, selected = '') {
+        choices.replaceChildren();
+        if (!rows.length) message(choices, 'Choose the option above to see available choices.', 'span');
+        for (const [code, title] of rows) {
+          const wrapper = document.createElement('label');
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = name;
+          input.value = code;
+          input.checked = code === String(selected ?? '');
+          wrapper.append(input, document.createTextNode(title));
+          choices.append(wrapper);
+        }
+      }
+    };
+    choices.addEventListener('change', () => control.onchange?.());
+    control.setOptions(options, value);
+    return control;
+  }
   const wrapper = document.createElement('label');
   wrapper.textContent = label;
-  const input = document.createElement(options ? 'select' : 'input');
+  const input = document.createElement('input');
   input.name = name;
-  if (options) {
-    for (const [code, title] of [['', 'Choose…'], ...options]) {
-      const option = document.createElement('option');
-      option.value = code;
-      option.textContent = title;
-      input.append(option);
-    }
-  } else input.type = type;
+  input.type = type;
   input.value = value == null ? '' : String(value);
   wrapper.append(input);
   parent.append(wrapper);
@@ -136,18 +161,17 @@ async function showConfiguration(order) {
   const packageSelect = field(shipping, 'shipping.package_code', 'Package type', s.package_code, []);
   async function refreshCatalog(restore = false) {
     const providerCode = providerSelect.value;
+    carrierSelect.setOptions([]);
+    serviceSelect.setOptions([]);
+    packageSelect.setOptions([]);
     const modeInfo = availableProviders.find(p => p.code === providerCode);
     document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
     document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : 'Buy shipping label';
     try {
       const catalog = await api(`/api/providers/${providerCode}/carriers`);
       if (currentOrder?.id !== order.id || currentOrder?.version !== order.version || providerSelect.value !== providerCode) return;
-      function options(select, rows, value) {
-        select.replaceChildren();
-        for (const row of [{code: '', name: 'Choose…'}, ...rows]) {
-          const option = document.createElement('option'); option.value = row.code; option.textContent = row.name; select.append(option);
-        }
-        select.value = value || '';
+      function options(control, rows, value) {
+        control.setOptions(rows.map(row => [row.code, row.name]), value);
       }
       function updateCarrier(restoreValues = false) {
         const carrier = catalog.carriers.find(c => c.code === carrierSelect.value);
@@ -185,14 +209,18 @@ async function showConfiguration(order) {
   }
 }
 function formValue(name) {
-  return document.querySelector('#configuration-form').elements.namedItem(name)?.value || '';
+  const element = document.querySelector('#configuration-form').elements.namedItem(name);
+  if (element?.type === 'radio') return element.checked ? element.value : '';
+  return element?.value || '';
 }
 async function saveConfiguration() {
   if (!currentOrder) return;
   const origin = {};
   for (const input of document.querySelectorAll('#origin-fields input')) origin[input.name.split('.')[1]] = input.value;
   const shipping = {};
-  for (const input of document.querySelectorAll('#shipping-fields input, #shipping-fields select')) shipping[input.name.split('.')[1]] = input.value;
+  for (const input of document.querySelectorAll('#shipping-fields input')) {
+    shipping[input.name.split('.')[1]] = formValue(input.name);
+  }
   shipping.ship_date = shipping.ship_date || null;
   shipping.residential = shipping.residential === '' ? null : shipping.residential === 'true';
   shipping.duties_payer = formValue('shipping.duties_payer');

@@ -15,8 +15,8 @@
     <p>Import WMS orders, review shipping details, and keep your label history in one place.</p>
     <p id="status" role="status" aria-live="polite">Workspace ready. No shipping provider connected.</p>
     <div class="tabs" role="tablist" aria-label="Workspace">
-      <button type="button" id="tab-import" role="tab" aria-controls="panel-import" aria-selected="true" tabindex="0">Import</button>
-      <button type="button" id="tab-orders" role="tab" aria-controls="panel-orders" aria-selected="false" tabindex="-1">Orders</button>
+      <button type="button" id="tab-import" role="tab" aria-controls="panel-import" aria-selected="true" tabindex="0">WMS orders</button>
+      <button type="button" id="tab-orders" role="tab" aria-controls="panel-orders" aria-selected="false" tabindex="-1">Shipping details</button>
       <button type="button" id="tab-history" role="tab" aria-controls="panel-history" aria-selected="false" tabindex="-1">History</button>
     </div>
     <section id="panel-import" role="tabpanel" aria-labelledby="tab-import" tabindex="0">
@@ -29,16 +29,19 @@
         <button type="submit">Import and preview</button>
       </form>
       <div id="import-result"></div>
-      <button type="button" data-open-tab="orders">Review orders</button>
+      <h2>Imported WMS orders</h2>
+      <p>Select an order to review and edit its shipping details. Existing orders are retained when you import them again.</p>
+      <div id="orders"></div>
     </section>
     <div id="panel-orders" role="tabpanel" aria-labelledby="tab-orders" tabindex="0" hidden>
-      <section>
-        <h2>Orders</h2>
-        <p>Existing orders are retained when you import them again.</p>
-        <div id="orders"></div>
+      <section id="no-order-selected">
+        <h2>Shipping details</h2>
+        <p>Select an imported WMS order to review and edit its shipping information.</p>
+        <button type="button" data-open-tab="import">Choose a WMS order</button>
       </section>
       <section id="preview-panel" hidden>
-        <h2>Order preview</h2>
+        <h2>Review shipping details</h2>
+        <button type="button" data-open-tab="import">Choose another order</button>
         <p id="configuration-mode">Simulation only — carrier choices do not buy usable postage.</p>
         <div id="order-summary"></div>
         <form id="configuration-form">
