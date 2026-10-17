@@ -31,7 +31,20 @@
     </section>
     <section id="preview-panel" hidden>
       <h2>Order preview</h2>
-      <pre id="order-preview"></pre>
+      <p id="configuration-mode">Simulation only — carrier choices do not buy usable postage.</p>
+      <div id="order-summary"></div>
+      <form id="configuration-form">
+        <h3>Warehouse / return address</h3>
+        <div id="origin-fields" class="fields"></div>
+        <h3>Shipping options</h3>
+        <div id="shipping-fields" class="fields"></div>
+        <h3 id="customs-heading">Canada customs</h3>
+        <div id="customs-fields" class="fields"></div>
+        <button type="submit">Save configuration</button>
+        <button type="button" id="validate-order">Check readiness</button>
+      </form>
+      <div id="validation-result" role="status" aria-live="polite"></div>
+      <details><summary>Imported data</summary><pre id="order-preview"></pre></details>
     </section>
   </main>
 </body>

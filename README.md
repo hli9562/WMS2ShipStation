@@ -2,7 +2,7 @@
 
 Local web workspace for manually exported XLWMS orders. Development is tracked in [GitHub issues](https://github.com/hli9562/WMS2ShipStation/issues).
 
-Current checkpoint: Docker application, migrations, XLSX import and order preview, duplicate detection, and source-row validation. Label purchase is not implemented yet.
+Current checkpoint: Docker application, migrations, XLSX import and order preview, duplicate detection, per-order configuration and readiness validation. Label purchase is not implemented yet.
 
 ## Run with Docker
 
@@ -75,3 +75,7 @@ On the home page choose an `.xlsx` file and select **Import and preview**. Selec
 The initial parser supports a single unambiguous package and SKU per order using the documented export headers in English, Chinese, or bilingual form. Multi-package, multi-SKU and repeated picking-location mappings are blocked pending real export examples. Combined dimensions must state their unit; unitless weights are rejected. Limits: 10 MiB uploaded, 100 MiB uncompressed, 1,000 data rows/sheet, 128 columns. Identifiers must be Excel text to avoid leading-zero/precision loss. Required worksheet names are `出库单` and `拣货库位明细`. Source workbooks are parsed in memory and not retained as files. Necessary normalized row evidence is kept in the private database.
 
 API clients send raw XLSX bytes to `POST /api/imports?filename=export.xlsx`, with `X-CSRF-Token` from the home page's meta tag; use the same origin. This endpoint does not accept multipart bodies. The order/detail APIs contain private recipient data and are intended only for the protected local workspace.
+
+## Configure an order
+
+Select an imported order to enter its complete Katy warehouse/contact address (also used for returns), shipping options, and applicable Canada customs information. Save configuration or select **Check readiness**. Missing values, incompatible carrier choices, stale edits and existing WMS tracking prevent readiness. All fields are configured per order. Carrier choices are explicitly simulated until the live provider adapter is implemented. Current Canada validation requires USD values, item quantity matching and a 6–10 digit HS code; duties billing is recipient-only in this initial scope. This is an application eligibility check, not address certification or legal/customs advice.

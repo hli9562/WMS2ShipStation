@@ -13,3 +13,8 @@ button:disabled { opacity: .5; cursor: wait; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; line-height: 1.5; }
 #status { color: #355d4b; font-weight: 600; }
 #import-result p { color: #8d3f14; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.fields label { font-size: .85rem; }
+.fields input, .fields select { display: block; box-sizing: border-box; width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #bccdc2; border-radius: 5px; background: white; color: #18302c; }
+#configuration-mode { padding: 12px; background: #fff2ca; border-radius: 5px; }
+#validation-result { margin: 12px 0; }

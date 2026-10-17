@@ -10,6 +10,7 @@ from sqlalchemy import text
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from wms2ship.config import Settings
+from wms2ship.configuration import router as configuration_router
 from wms2ship.db import make_engine, migrate
 from wms2ship.import_routes import router as import_router
 
@@ -31,6 +32,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="WMS2ShipStation", lifespan=lifespan)
     app.state.settings = settings
     app.include_router(import_router)
+    app.include_router(configuration_router)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     templates = Jinja2Templates(directory=str(ROOT / "templates"))
     app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
