@@ -181,3 +181,9 @@ unreadable files cannot be selected. Each selected file is checked again before
 upload. The folder is read-only: monitoring never moves/deletes files or buys
 postage. Folder access occurs in the browser, so no Docker host mount is needed.
 Localhost and HTTPS are supported; other browsers can use the normal file picker.
+
+## Product manager test files
+
+Five committed synthetic XLSX files and step-by-step acceptance checks are in
+[tests/fixtures/pm](tests/fixtures/pm/README.md). These tests work with Simulation
+and do not require ShipStation credentials.

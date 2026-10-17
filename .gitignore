@@ -15,3 +15,6 @@ backups/
 *.xls
 *.pdf
 .DS_Store
+
+# Deliberately versioned synthetic PM acceptance-test workbooks.
+!tests/fixtures/pm/*.xlsx
