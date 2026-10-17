@@ -20,3 +20,17 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; line-hei
 #validation-result { margin: 12px 0; }
 #history article { border-top: 1px solid #d9e2da; padding: 16px 0; }
 #history a { display: inline-block; margin: 6px 20px 6px 0; color: #19624d; font-weight: 600; }
+
+[hidden] { display: none !important; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid #bccdc2; margin-top: 28px; }
+.tabs button { margin: 0; padding: 14px 24px; border-radius: 6px 6px 0 0; background: transparent; color: #355d4b; border-bottom: 3px solid transparent; }
+.tabs button[aria-selected="true"] { background: white; color: #19624d; border-bottom-color: #19624d; font-weight: 700; }
+.tabs button:hover { background: #e5eee7; }
+:focus-visible { outline: 3px solid #267ab3; outline-offset: 3px; }
+[role="tabpanel"] { margin-top: 20px; }
+[role="tabpanel"] > section:first-child { margin-top: 0; }
+@media (max-width: 600px) {
+  main { margin: 28px auto; padding: 0 16px; }
+  section { padding: 20px; }
+  .tabs button { flex: 1; padding: 14px 12px; }
+}

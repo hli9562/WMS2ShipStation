@@ -3,6 +3,40 @@ const status = document.querySelector('#status');
 const orders = document.querySelector('#orders');
 const results = document.querySelector('#import-result');
 
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+function selectTab(name) {
+  const selected = tabs.find(tab => tab.id === `tab-${name}`) || tabs[0];
+  for (const tab of tabs) {
+    const active = tab === selected;
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+    document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+  }
+}
+function openTab(name) {
+  selectTab(name);
+  if (location.hash !== `#${name}`) location.hash = name;
+}
+for (const [index, tab] of tabs.entries()) {
+  tab.addEventListener('click', () => openTab(tab.id.slice(4)));
+  tab.addEventListener('keydown', event => {
+    const positions = { ArrowRight: (index + 1) % tabs.length, ArrowLeft: (index + tabs.length - 1) % tabs.length, Home: 0, End: tabs.length - 1 };
+    if (!(event.key in positions)) return;
+    event.preventDefault();
+    const next = tabs[positions[event.key]];
+    openTab(next.id.slice(4));
+    next.focus();
+  });
+}
+document.querySelectorAll('[data-open-tab]').forEach(button => {
+  button.addEventListener('click', () => {
+    openTab(button.dataset.openTab);
+    document.getElementById(`tab-${button.dataset.openTab}`).focus();
+  });
+});
+window.addEventListener('hashchange', () => selectTab(location.hash.slice(1)));
+selectTab(location.hash.slice(1));
+
 async function api(path, options = {}) {
   const response = await fetch(path, options);
   const data = await response.json();

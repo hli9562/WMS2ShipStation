@@ -13,7 +13,13 @@
     <p class="eyebrow">KATY WAREHOUSE · LOCAL WORKSPACE</p>
     <h1>WMS2ShipStation</h1>
     <p>Import WMS orders, review shipping details, and keep your label history in one place.</p>
-    <section>
+    <p id="status" role="status" aria-live="polite">Workspace ready. No shipping provider connected.</p>
+    <div class="tabs" role="tablist" aria-label="Workspace">
+      <button type="button" id="tab-import" role="tab" aria-controls="panel-import" aria-selected="true" tabindex="0">Import</button>
+      <button type="button" id="tab-orders" role="tab" aria-controls="panel-orders" aria-selected="false" tabindex="-1">Orders</button>
+      <button type="button" id="tab-history" role="tab" aria-controls="panel-history" aria-selected="false" tabindex="-1">History</button>
+    </div>
+    <section id="panel-import" role="tabpanel" aria-labelledby="tab-import" tabindex="0">
       <h2>Import WMS orders</h2>
       <p>Select an XLSX export. Importing only previews and saves order data; it never buys postage.</p>
       <p><a href="/sample.xlsx">Download a synthetic US test export</a> — simulation only, never ship it.</p>
@@ -22,34 +28,36 @@
         <input type="file" id="workbook" accept=".xlsx" required>
         <button type="submit">Import and preview</button>
       </form>
-      <p id="status" role="status" aria-live="polite">Workspace ready. No shipping provider connected.</p>
       <div id="import-result"></div>
+      <button type="button" data-open-tab="orders">Review orders</button>
     </section>
-    <section>
-      <h2>Orders</h2>
-      <p>Existing orders are retained when you import them again.</p>
-      <div id="orders"></div>
-    </section>
-    <section id="preview-panel" hidden>
-      <h2>Order preview</h2>
-      <p id="configuration-mode">Simulation only — carrier choices do not buy usable postage.</p>
-      <div id="order-summary"></div>
-      <form id="configuration-form">
-        <h3>Warehouse / return address</h3>
-        <div id="origin-fields" class="fields"></div>
-        <h3>Shipping options</h3>
-        <div id="shipping-fields" class="fields"></div>
-        <h3 id="customs-heading">Canada customs</h3>
-        <div id="customs-fields" class="fields"></div>
-        <button type="submit">Save configuration</button>
-        <button type="button" id="validate-order">Check readiness</button>
-      </form>
-      <button type="button" id="create-label">Create simulated label</button>
-      <div id="purchase-result" role="status" aria-live="polite"></div>
-      <div id="validation-result" role="status" aria-live="polite"></div>
-      <details><summary>Imported data</summary><pre id="order-preview"></pre></details>
-    </section>
-    <section>
+    <div id="panel-orders" role="tabpanel" aria-labelledby="tab-orders" tabindex="0" hidden>
+      <section>
+        <h2>Orders</h2>
+        <p>Existing orders are retained when you import them again.</p>
+        <div id="orders"></div>
+      </section>
+      <section id="preview-panel" hidden>
+        <h2>Order preview</h2>
+        <p id="configuration-mode">Simulation only — carrier choices do not buy usable postage.</p>
+        <div id="order-summary"></div>
+        <form id="configuration-form">
+          <h3>Warehouse / return address</h3>
+          <div id="origin-fields" class="fields"></div>
+          <h3>Shipping options</h3>
+          <div id="shipping-fields" class="fields"></div>
+          <h3 id="customs-heading">Canada customs</h3>
+          <div id="customs-fields" class="fields"></div>
+          <button type="submit">Save configuration</button>
+          <button type="button" id="validate-order">Check readiness</button>
+        </form>
+        <button type="button" id="create-label">Create simulated label</button>
+        <div id="purchase-result" role="status" aria-live="polite"></div>
+        <div id="validation-result" role="status" aria-live="polite"></div>
+        <details><summary>Imported data</summary><pre id="order-preview"></pre></details>
+      </section>
+    </div>
+    <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" hidden>
       <h2>Shipment history</h2>
       <p>Use live tracking numbers to update WMS manually. Simulated tracking is not valid for shipping.</p>
       <button type="button" id="refresh-history">Refresh history</button>
