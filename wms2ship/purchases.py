@@ -103,9 +103,12 @@ class CreateAttempt(DraftModel):
     package_id: str
     request_token: str = Field(min_length=16, max_length=100)
     confirm_purchase: bool = False
+    repeat_test: bool = False
 
 
 def reserve(engine, order_id, payload, provider, catalog):
+    if payload.repeat_test and (provider.code != "shipstation_test" or provider.mode != "test"):
+        raise HTTPException(400, "Repeat requests are available only for USPS test labels.")
     attempt_id = str(uuid4())
     with engine.connect() as db:
         db.exec_driver_sql("BEGIN IMMEDIATE")
@@ -146,6 +149,38 @@ def reserve(engine, order_id, payload, provider, catalog):
                 raise HTTPException(422, {"message": "Shipment is not ready.", "issues": issues})
             if [p["id"] for p in snapshot["packages"]] != [payload.package_id]:
                 raise HTTPException(422, "Selected package does not belong to this order.")
+            if payload.repeat_test:
+                previous = (
+                    db.execute(
+                        text(
+                            "SELECT g.attempt_id,a.state,p.provider_code FROM purchase_guards g "
+                            "JOIN label_attempts a ON a.id=g.attempt_id "
+                            "JOIN provider_accounts p ON p.id=a.provider_account_id "
+                            "WHERE g.package_id=:package"
+                        ),
+                        {"package": payload.package_id},
+                    )
+                    .mappings()
+                    .first()
+                )
+                if (
+                    previous
+                    and previous["state"] == "purchased"
+                    and previous["provider_code"] == "shipstation_test"
+                ):
+                    db.execute(
+                        text(
+                            "DELETE FROM purchase_guards WHERE package_id=:package "
+                            "AND attempt_id=:attempt"
+                        ),
+                        {"package": payload.package_id, "attempt": previous["attempt_id"]},
+                    )
+                    event(
+                        db,
+                        previous["attempt_id"],
+                        "test_repeat_requested",
+                        {"next_attempt_id": attempt_id},
+                    )
             provider_id = provider.code
             db.execute(
                 text(

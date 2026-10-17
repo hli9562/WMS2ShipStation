@@ -152,6 +152,9 @@ no insurance or add-ons. Use **Create USPS test label** to request a V1
 mode does contact the real ShipStation API, but cannot submit `testLabel: false`.
 Simulation remains the offline option. Test activity is marked `test` in
 history and manager reports and is excluded from the live mode filter.
-Completed/uncertain test attempts retain the same duplicate-request safeguards;
-use a new synthetic order number for a separate test. Do not use test labels
-or their tracking numbers for fulfillment.
+After a successful test label, click **Create another USPS test label** to run
+another test on the same synthetic order. Each intentional repeat uses a fresh
+request token (`repeat_test: true`) and retains prior labels and history.
+Duplicate tokens return the original attempt; sending/uncertain attempts block
+repeats until resolved. This exception applies only to USPS test mode and never
+releases a paid-purchase guard. Do not use test labels or tracking for fulfillment.

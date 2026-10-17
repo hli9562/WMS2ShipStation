@@ -101,6 +101,7 @@ document.querySelector('#import-form').addEventListener('submit', async event =>
 loadOrders().catch(error => { status.textContent = error.message; });
 
 let currentOrder;
+let labelRequestInFlight = false;
 let availableProviders = [{code: 'fake', mode: 'simulation', live_purchase_enabled: false}];
 const providersReady = api('/api/providers').then(data => {
   availableProviders = data;
@@ -179,7 +180,7 @@ async function showConfiguration(order) {
     const modeInfo = availableProviders.find(p => p.code === providerCode);
     document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : providerCode === 'shipstation_test' ? 'USPS test label only — not valid postage. Uses testLabel: true; paid purchases remain disabled.' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
     document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : providerCode === 'shipstation_test' ? 'Create USPS test label' : 'Buy shipping label';
-    document.querySelector('#create-label').disabled = providerCode === 'shipstation' && !modeInfo?.live_purchase_enabled;
+    document.querySelector('#create-label').disabled = labelRequestInFlight || (providerCode === 'shipstation' && !modeInfo?.live_purchase_enabled);
     try {
       const catalog = await api(`/api/providers/${providerCode}/carriers`);
       if (currentOrder?.id !== order.id || currentOrder?.version !== order.version || providerSelect.value !== providerCode) return;
@@ -295,7 +296,8 @@ document.querySelector('#validate-order').addEventListener('click', async () => 
 // Keep the request token until success/failure is known; an uncertain request must not be repurchased.
 const purchaseTokens = new Map();
 document.querySelector('#create-label').addEventListener('click', async event => {
-  if (!currentOrder) return;
+  if (!currentOrder || labelRequestInFlight) return;
+  labelRequestInFlight = true;
   const button = event.currentTarget;
   button.disabled = true;
   const target = document.querySelector('#purchase-result');
@@ -307,12 +309,19 @@ document.querySelector('#create-label').addEventListener('click', async event =>
     if (!purchaseTokens.has(key)) purchaseTokens.set(key, crypto.randomUUID());
     const attempt = await api(`/api/orders/${order.id}/label-attempts`, {
       method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ version: order.version, package_id: order.packages[0].id, request_token: purchaseTokens.get(key), confirm_purchase: true })
+      body: JSON.stringify({ version: order.version, package_id: order.packages[0].id, request_token: purchaseTokens.get(key), confirm_purchase: true, repeat_test: selected === 'shipstation_test' })
     });
+    if (attempt.mode === 'test' && attempt.state === 'purchased') {
+      purchaseTokens.delete(key);
+      button.textContent = 'Create another USPS test label';
+    }
     await loadHistory(true);
     target.textContent = ` ${attempt.mode === 'simulation' ? 'SIMULATION — NOT VALID POSTAGE.' : attempt.mode === 'test' ? 'USPS TEST LABEL — NOT VALID POSTAGE.' : 'ShipStation purchase.'} Attempt ${attempt.id}: ${attempt.state}. ${attempt.labels.map(l => l.tracking_number).join(', ')}`;
   } catch (error) { target.textContent = error.message; }
-  finally { button.disabled = false; }
+  finally {
+    labelRequestInFlight = false;
+    button.disabled = formValue('shipping.provider') === 'shipstation' && !availableProviders.find(p => p.code === 'shipstation')?.live_purchase_enabled;
+  }
 });
 
 let historyOffset = 0;

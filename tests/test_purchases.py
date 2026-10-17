@@ -139,3 +139,17 @@ def test_interrupted_attempt_blocks_after_restart(tmp_path):
             ).status_code
             == 409
         )
+
+
+def test_repeat_test_flag_cannot_bypass_non_test_purchase_guard(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        order_id, headers, payload = setup_order(client)
+        url = f"/api/orders/{order_id}/label-attempts"
+        assert client.post(url, json=payload, headers=headers).json()["state"] == "purchased"
+        payload.update(request_token=str(uuid4()), repeat_test=True)
+        assert client.post(url, json=payload, headers=headers).status_code == 400
+        payload["repeat_test"] = False
+        assert client.post(url, json=payload, headers=headers).status_code == 409
+        with client.app.state.engine.connect() as db:
+            assert db.execute(text("SELECT count(*) FROM purchase_guards")).scalar() == 1
+            assert db.execute(text("SELECT count(*) FROM label_attempts")).scalar() == 1

@@ -1,5 +1,6 @@
 import base64
 import json
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -364,6 +365,48 @@ def test_usps_test_label_cannot_send_paid_request_and_is_reported_separately(tmp
         with pytest.raises(PurchaseRejected):
             provider.create_label(invalid, "invalid")
         assert len(calls) == 1
+
+        # A fresh request is blocked unless the caller explicitly requests a test repeat.
+        next_payload = {**payload, "request_token": str(uuid4())}
+        url = f"/api/orders/{order_id}/label-attempts"
+        assert client.post(url, json=next_payload, headers=headers).status_code == 409
+        next_payload["repeat_test"] = True
+        another = client.post(url, json=next_payload, headers=headers)
+        assert another.status_code == 200
+        assert another.json()["state"] == "purchased"
+        assert another.json()["mode"] == "test"
+        assert another.json()["id"] != result.json()["id"]
+        assert len(calls) == 2
+        duplicate = client.post(url, json=next_payload, headers=headers)
+        assert duplicate.json()["id"] == another.json()["id"]
+        assert len(calls) == 2
+        assert client.get("/api/review?mode=test").json()["total"] == 2
+        with client.app.state.engine.begin() as db:
+            assert db.execute(text("SELECT count(*) FROM labels")).scalar() == 2
+            assert db.execute(text("SELECT count(*) FROM purchase_guards")).scalar() == 1
+            assert (
+                db.execute(
+                    text(
+                        "SELECT count(*) FROM attempt_events "
+                        "WHERE event_type='test_repeat_requested'"
+                    )
+                ).scalar()
+                == 1
+            )
+            # In-flight or uncertain attempts must still block repeat requests.
+            db.execute(
+                text("UPDATE label_attempts SET state='sending' WHERE id=:id"),
+                {"id": another.json()["id"]},
+            )
+        next_payload["request_token"] = str(uuid4())
+        assert client.post(url, json=next_payload, headers=headers).status_code == 409
+        with client.app.state.engine.begin() as db:
+            db.execute(
+                text("UPDATE label_attempts SET state='uncertain' WHERE id=:id"),
+                {"id": another.json()["id"]},
+            )
+        assert client.post(url, json=next_payload, headers=headers).status_code == 409
+        assert len(calls) == 2
 
 
 def test_usps_lookup_skips_other_carriers_and_reuses_shared_cache(monkeypatch):
