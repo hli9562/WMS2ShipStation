@@ -20,7 +20,7 @@ The intended workflow is: import export → validate and review shipment details
 
 ## Confirmed operating decisions
 
-- Start with a local web app; plan for later cloud deployment and access by multiple users.
+- Start with a local web app; plan for later deployment to Google Cloud and access by multiple users.
 - Use one warehouse in Katy, Texas, USA. The return address is the same as the ship-from address. The operator configures the complete warehouse address and contact details per order before purchasing its label; use that same address for returns.
 - Operators choose the carrier. Available accounts and service selection details remain to be confirmed.
 - Orders are not in ShipStation. Create shipment labels directly without first creating ShipStation orders. The existing credentials are confirmed as V1 API key/secret.

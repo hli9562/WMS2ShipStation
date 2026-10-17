@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+    environment:
+      WMS_DATA_DIR: /data
+      PORT: "8080"
+    volumes:
+      - app_data:/data
+    restart: unless-stopped
+    init: true
+volumes:
+  app_data:
