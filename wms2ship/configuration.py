@@ -6,7 +6,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import text
 
 from wms2ship.import_routes import order_detail
@@ -28,6 +28,29 @@ class Origin(DraftModel):
     state: str = Field(default="", max_length=2)
     postal: str = Field(default="", max_length=20)
     country: str = Field(default="", max_length=2)
+
+    @field_validator("country", mode="before")
+    @classmethod
+    def normalize_country(cls, value):
+        if not isinstance(value, str):
+            return value
+        code = value.strip().upper()
+        return {
+            "UNITED STATES": "US",
+            "UNITED STATES OF AMERICA": "US",
+            "USA": "US",
+            "U.S.": "US",
+            "U.S.A.": "US",
+            "CANADA": "CA",
+        }.get(code, code)
+
+    @field_validator("state", mode="before")
+    @classmethod
+    def normalize_state(cls, value):
+        if not isinstance(value, str):
+            return value
+        code = value.strip().upper()
+        return "TX" if code == "TEXAS" else code
 
 
 class Shipping(DraftModel):

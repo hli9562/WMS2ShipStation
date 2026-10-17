@@ -40,7 +40,13 @@ selectTab(location.hash.slice(1));
 async function api(path, options = {}) {
   const response = await fetch(path, options);
   const data = await response.json();
-  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : (data.detail?.issues?.map(i => `${i.field}: ${i.message}`).join(' ') || 'Request failed.'));
+  if (!response.ok) {
+    const detail = data.detail;
+    const issues = Array.isArray(detail)
+      ? detail.map(issue => `${(issue.loc || []).filter(part => part !== 'body').join('.')}: ${issue.msg}`)
+      : detail?.issues?.map(issue => `${issue.field}: ${issue.message}`);
+    throw new Error(typeof detail === 'string' ? detail : (issues?.join(' ') || `Request failed (${response.status}).`));
+  }
   return data;
 }
 
@@ -152,7 +158,7 @@ async function showConfiguration(order) {
   const shipping = document.querySelector('#shipping-fields');
   const customs = document.querySelector('#customs-fields');
   [origin, shipping, customs].forEach(node => node.replaceChildren());
-  for (const [key, label] of Object.entries({ name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX)', postal: 'ZIP code', country: 'Country (US)' })) {
+  for (const [key, label] of Object.entries({ name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US or United States)' })) {
     field(origin, `origin.${key}`, label, order.origin?.[key]);
   }
   renderShipperChoices();
@@ -303,7 +309,7 @@ document.querySelector('#refresh-history').addEventListener('click', () => loadH
 document.querySelector('#more-history').addEventListener('click', () => loadHistory(false).catch(error => { status.textContent = error.message; }));
 loadHistory(true).catch(error => { status.textContent = error.message; });
 
-const addressLabels = { name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX)', postal: 'ZIP code', country: 'Country (US)' };
+const addressLabels = { name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US or United States)' };
 let shipperContacts = [];
 let editingContactId = null;
 function editContact(contact = null) {

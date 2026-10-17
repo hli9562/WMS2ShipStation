@@ -49,3 +49,34 @@ def test_contacts_persist_and_orders_keep_address_snapshot(tmp_path):
             client.put("/api/shipper-contacts/missing", json=payload, headers=headers).status_code
             == 404
         )
+
+
+def test_contact_accepts_country_names_and_normalizes_state(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        payload = {
+            "label": "Synthetic shipper",
+            "address": {
+                "name": "Test contact",
+                "country": "United States",
+                "state": "tx",
+                "city": "Katy",
+                "postal": "77494",
+            },
+        }
+        response = client.post("/api/shipper-contacts", json=payload, headers=headers)
+        assert response.status_code == 201
+        contact = response.json()
+        assert contact["address"]["country"] == "US"
+        assert contact["address"]["state"] == "TX"
+        payload["address"].update(country=" united states of america ", state=" Texas ")
+        updated = client.put(
+            f"/api/shipper-contacts/{contact['id']}", json=payload, headers=headers
+        )
+        assert updated.status_code == 200
+        assert updated.json()["address"]["country"] == "US"
+        assert updated.json()["address"]["state"] == "TX"
+        payload["address"]["country"] = "Not a country"
+        invalid = client.post("/api/shipper-contacts", json=payload, headers=headers)
+        assert invalid.status_code == 422
+        assert invalid.json()["detail"][0]["loc"] == ["body", "address", "country"]
