@@ -143,6 +143,7 @@ function field(parent, name, label, value = '', options = null, type = 'text') {
 }
 async function showConfiguration(order) {
   await providersReady;
+  await contactsReady;
   currentOrder = order;
   document.querySelector('#order-preview').textContent = JSON.stringify(order, null, 2);
   document.querySelector('#order-summary').textContent = `${order.wms_order_no} · ${order.recipient.country} · ${order.packages[0]?.weight_g || '?'} g`;
@@ -154,6 +155,7 @@ async function showConfiguration(order) {
   for (const [key, label] of Object.entries({ name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX)', postal: 'ZIP code', country: 'Country (US)' })) {
     field(origin, `origin.${key}`, label, order.origin?.[key]);
   }
+  renderShipperChoices();
   const s = order.shipping || {};
   const providerSelect = field(shipping, 'shipping.provider', 'Shipping provider', s.provider || 'fake', availableProviders.map(p => [p.code, p.mode === 'simulation' ? 'Simulation — no postage' : 'ShipStation V1 — live account']));
   const carrierSelect = field(shipping, 'shipping.carrier_code', 'Carrier', s.carrier_code, []);
@@ -300,3 +302,88 @@ async function loadHistory(reset = false) {
 document.querySelector('#refresh-history').addEventListener('click', () => loadHistory(true).catch(error => { status.textContent = error.message; }));
 document.querySelector('#more-history').addEventListener('click', () => loadHistory(false).catch(error => { status.textContent = error.message; }));
 loadHistory(true).catch(error => { status.textContent = error.message; });
+
+const addressLabels = { name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX)', postal: 'ZIP code', country: 'Country (US)' };
+let shipperContacts = [];
+let editingContactId = null;
+function editContact(contact = null) {
+  editingContactId = contact?.id || null;
+  document.querySelector('#contact-form-heading').textContent = contact ? 'Edit contact' : 'Add contact';
+  const container = document.querySelector('#contact-fields');
+  container.replaceChildren();
+  field(container, 'label', 'Saved contact name', contact?.label).required = true;
+  for (const [key, label] of Object.entries(addressLabels)) {
+    field(container, key, label, contact?.address[key] || '');
+  }
+}
+function renderShipperChoices() {
+  const container = document.querySelector('#shipper-choices');
+  container.replaceChildren();
+  if (!shipperContacts.length) {
+    message(container, 'No saved contacts yet. Add a shipper contact in Settings, or enter details below.');
+    const button = message(container, 'Add a contact in Settings', 'button');
+    button.type = 'button';
+    button.onclick = () => openTab('settings');
+    return;
+  }
+  const matches = shipperContacts.find(contact => Object.keys(addressLabels).every(key =>
+    (document.querySelector('#configuration-form').elements.namedItem(`origin.${key}`)?.value || '') === (contact.address[key] || '')));
+  const choice = field(container, 'saved_shipper', 'Saved shipper contact', matches?.id || '', shipperContacts.map(c => [c.id, c.label]));
+  choice.onchange = () => {
+    const contact = shipperContacts.find(c => c.id === choice.value);
+    if (!contact) return;
+    for (const key of Object.keys(addressLabels)) {
+      document.querySelector('#configuration-form').elements.namedItem(`origin.${key}`).value = contact.address[key] || '';
+    }
+    document.querySelector('#validation-result').textContent = 'Shipper contact applied. Save configuration to keep it on this order.';
+  };
+  // A manually edited address is no longer an exact copy of a saved contact.
+  document.querySelectorAll('#origin-fields input').forEach(input => {
+    input.oninput = () => container.querySelectorAll('input[type="radio"]').forEach(radio => { radio.checked = false; });
+  });
+}
+async function loadContacts() {
+  shipperContacts = await api('/api/shipper-contacts');
+  const list = document.querySelector('#contact-list');
+  list.replaceChildren();
+  if (!shipperContacts.length) message(list, 'No saved shipper contacts. Add your first contact below.');
+  for (const contact of shipperContacts) {
+    const article = document.createElement('article');
+    message(article, contact.label, 'h3');
+    message(article, [contact.address.name, contact.address.company, contact.address.phone, contact.address.address1, contact.address.address2, contact.address.city, contact.address.state, contact.address.postal, contact.address.country].filter(Boolean).join(' · '));
+    const edit = message(article, 'Edit', 'button');
+    edit.type = 'button';
+    edit.onclick = () => { editContact(contact); document.querySelector('#contact-form').elements.namedItem('label').focus(); };
+    const remove = message(article, 'Delete', 'button');
+    remove.type = 'button';
+    remove.onclick = async () => {
+      if (!window.confirm(`Delete saved contact “${contact.label}”? Saved orders keep their shipper details.`)) return;
+      try {
+        await api(`/api/shipper-contacts/${contact.id}`, { method: 'DELETE', headers: { 'X-CSRF-Token': csrf } });
+        if (editingContactId === contact.id) editContact();
+        await loadContacts();
+        document.querySelector('#contact-status').textContent = 'Contact deleted. Saved orders are unchanged.';
+      } catch (error) { document.querySelector('#contact-status').textContent = error.message; }
+    };
+    list.append(article);
+  }
+  if (currentOrder) renderShipperChoices();
+}
+document.querySelector('#new-contact').onclick = () => editContact();
+document.querySelector('#contact-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const contactId = editingContactId;
+  const payload = { label: form.elements.namedItem('label').value, address: Object.fromEntries(Object.keys(addressLabels).map(key => [key, form.elements.namedItem(key).value])) };
+  button.disabled = true;
+  try {
+    await api(`/api/shipper-contacts${contactId ? `/${contactId}` : ''}`, { method: contactId ? 'PUT' : 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    editContact();
+    await loadContacts();
+    document.querySelector('#contact-status').textContent = 'Contact saved. Select it in Shipping details to use it on an order.';
+  } catch (error) { document.querySelector('#contact-status').textContent = error.message; }
+  finally { button.disabled = false; }
+});
+editContact();
+const contactsReady = loadContacts().catch(error => { document.querySelector('#contact-status').textContent = error.message; });

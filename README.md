@@ -115,3 +115,12 @@ uv run python -m scripts.check_shipstation_mock
 This opt-in network diagnostic uses only synthetic data and dummy credentials against the fixed [official V1 mock server](https://docs.shipstation.com/apis/shipstation-v1/openapi/shipments). It does not load your `.env`, call production, create local purchase records, or change application provider settings. It checks store/carrier/service/package responses, label response fields, PDF completeness, and whether an empty label request is rejected.
 
 On 2026-10-17 the mock returned HTTP 200 for lookups and label creation, but its store example had no Manual Store, its package example did not match the requested carrier, and `labelData` was truncated placeholder data. It is useful for API response-shape checks, not full application acceptance or printer tests. Use the app's **Simulation** provider for complete local workflow/PDF testing. An actual ShipStation developer account is a production-like account, not a guaranteed free sandbox; keep live purchase disabled until ready for an explicitly confirmed paid test.
+
+### Saved shipper contacts
+
+Use **Settings → Shipper contacts** to add, edit, or delete named contacts. In
+**Shipping details**, select a saved contact to copy its address and phone into
+the order, then save the configuration. Changes to a contact do not change
+previously saved orders. Shipper and return addresses still use the Katy, TX
+warehouse. Contacts are stored in the local database and included in backups;
+the new table is created automatically on application startup.

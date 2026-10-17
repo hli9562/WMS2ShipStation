@@ -18,6 +18,7 @@
       <button type="button" id="tab-import" role="tab" aria-controls="panel-import" aria-selected="true" tabindex="0">WMS orders</button>
       <button type="button" id="tab-orders" role="tab" aria-controls="panel-orders" aria-selected="false" tabindex="-1">Shipping details</button>
       <button type="button" id="tab-history" role="tab" aria-controls="panel-history" aria-selected="false" tabindex="-1">History</button>
+      <button type="button" id="tab-settings" role="tab" aria-controls="panel-settings" aria-selected="false" tabindex="-1">Settings</button>
     </div>
     <section id="panel-import" role="tabpanel" aria-labelledby="tab-import" tabindex="0">
       <h2>Import WMS orders</h2>
@@ -46,6 +47,8 @@
         <div id="order-summary"></div>
         <form id="configuration-form">
           <h3>Warehouse / return address</h3>
+          <div id="shipper-choices"></div>
+          <p>Selecting a contact copies its details below. You can edit them for this order.</p>
           <div id="origin-fields" class="fields"></div>
           <h3>Shipping options</h3>
           <div id="shipping-fields" class="fields"></div>
@@ -66,6 +69,18 @@
       <button type="button" id="refresh-history">Refresh history</button>
       <div id="history"></div>
       <button type="button" id="more-history" hidden>Load more history</button>
+    </section>
+    <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
+      <h2>Shipper contacts</h2>
+      <p>Save contacts for the Katy warehouse to reuse as the shipper and return address. Changes here do not change saved orders.</p>
+      <div id="contact-list"></div>
+      <h3 id="contact-form-heading">Add contact</h3>
+      <form id="contact-form">
+        <div id="contact-fields" class="fields"></div>
+        <button type="submit">Save contact</button>
+        <button type="button" id="new-contact">New contact</button>
+      </form>
+      <p id="contact-status" role="status" aria-live="polite"></p>
     </section>
   </main>
 </body>

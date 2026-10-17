@@ -11,6 +11,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from wms2ship.config import Settings
 from wms2ship.configuration import router as configuration_router
+from wms2ship.contacts import router as contacts_router
 from wms2ship.db import make_engine, migrate
 from wms2ship.import_routes import router as import_router
 from wms2ship.labels import router as label_router
@@ -56,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.include_router(import_router)
     app.include_router(configuration_router)
+    app.include_router(contacts_router)
     app.include_router(purchase_router)
     app.include_router(label_router)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)

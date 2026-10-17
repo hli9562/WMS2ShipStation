@@ -66,3 +66,11 @@ Draft values may be incomplete, so address/configuration JSON and dimensions can
 The reference schema intentionally omits users/roles, queues, rate caches, automatic voids, and permanent raw-upload storage. Actor strings use a local identity initially; migrate to authenticated user references before cloud access. Before multi-package support, add explicit item-to-package allocation if required by the provider/customs workflow.
 
 Implement migrations using Alembic. Test SQLite foreign keys, guard uniqueness, stale versions, cross-order membership rejection, transaction rollback, and restore behavior. For the confirmed Google Cloud deployment, use Cloud SQL for PostgreSQL and store label artifacts in private Cloud Storage. Local Docker runs keep SQLite and labels on a persistent volume. On PostgreSQL migration, replace SQLite-specific JSON checks/PRAGMAs and verify every invariant with real concurrent transactions.
+
+### Saved shipper contacts
+
+Migration `0002` adds `shipper_contacts` (`id`, `label`, `address_json`). The
+address uses the existing order origin fields. Selecting a contact copies its
+values into the order editor; saving the order stores an independent snapshot
+in `orders.origin_json`. Editing or deleting a contact does not update orders
+or historical label request snapshots. Contacts are included in database backups.
