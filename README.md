@@ -142,3 +142,16 @@ The manager view uses the current shared full-access local workspace.
 
 See [ShipStation V1 shipping options](docs/SHIPSTATION_OPTIONS.md) for the
 supported choices, carrier restrictions, and official API references.
+
+### USPS test labels with paid purchases disabled
+
+Select **ShipStation USPS test label — not valid postage** for a dedicated
+`USPS-PRIORITY-US-TEST-…` order with a US destination, Stamps.com carrier, and
+no insurance or add-ons. Use **Create USPS test label** to request a V1
+`testLabel: true` label. The live-purchase setting can remain false. This
+mode does contact the real ShipStation API, but cannot submit `testLabel: false`.
+Simulation remains the offline option. Test activity is marked `test` in
+history and manager reports and is excluded from the live mode filter.
+Completed/uncertain test attempts retain the same duplicate-request safeguards;
+use a new synthetic order number for a separate test. Do not use test labels
+or their tracking numbers for fulfillment.

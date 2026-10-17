@@ -272,3 +272,95 @@ def test_catalog_preserves_package_destination_scope():
         assert provider.catalog()["carriers"][0]["packages"][0]["international"] is False
     finally:
         provider.close()
+
+
+def test_usps_test_label_cannot_send_paid_request_and_is_reported_separately(tmp_path):
+    from sqlalchemy import text
+
+    from wms2ship.shipstation import ShipStationTestProvider
+
+    calls = []
+
+    def handler(request):
+        if request.method == "POST":
+            calls.append(json.loads(request.content))
+            assert request.url.path == "/shipments/createlabel"
+            assert calls[-1]["testLabel"] is True
+            assert calls[-1]["carrierCode"] == "stamps_com"
+            assert "insuranceOptions" not in calls[-1]
+            return httpx.Response(
+                200,
+                json={
+                    "shipmentId": 456,
+                    "trackingNumber": "USPS-TEST-ONLY",
+                    "shipmentCost": 9.99,
+                    "labelData": base64.b64encode(demo_pdf()).decode(),
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "/stores": [{"marketplaceId": 0, "active": True}],
+                "/carriers": [{"code": "stamps_com", "name": "Stamps", "primary": True}],
+                "/carriers/listservices": [
+                    {"code": "usps_priority_mail", "name": "Priority", "domestic": True}
+                ],
+                "/carriers/listpackages": [
+                    {"code": "package", "name": "Package", "domestic": True}
+                ],
+            }[request.url.path],
+        )
+
+    with TestClient(create_app(Settings(data_dir=tmp_path, enable_live_purchase=False))) as client:
+        provider = ShipStationTestProvider(
+            "test-k", "test-s", transport=httpx.MockTransport(handler)
+        )
+        client.app.state.providers["shipstation_test"] = provider
+        order_id, headers, payload = setup_order(client, "USPS-PRIORITY-US-TEST-001")
+        order = client.get(f"/api/orders/{order_id}").json()
+        order["recipient"].update(country="US", state="TX", city="Austin", postal="78703")
+        with client.app.state.engine.begin() as db:
+            db.execute(
+                text("UPDATE orders SET recipient_json=:value WHERE id=:id"),
+                {"value": json.dumps(order["recipient"]), "id": order_id},
+            )
+        config = draft(order)
+        config["customs"] = None
+        config["shipping"].update(
+            provider="shipstation_test",
+            carrier_code="stamps_com",
+            service_code="usps_priority_mail",
+            package_code="package",
+        )
+        saved = client.patch(f"/api/orders/{order_id}", json=config, headers=headers).json()
+        payload["version"] = saved["version"]
+        result = client.post(
+            f"/api/orders/{order_id}/label-attempts", json=payload, headers=headers
+        )
+        assert result.status_code == 200
+        assert result.json()["mode"] == "test"
+        assert result.json()["state"] == "purchased"
+        assert len(calls) == 1
+        repeat = client.post(
+            f"/api/orders/{order_id}/label-attempts", json=payload, headers=headers
+        )
+        assert repeat.json()["id"] == result.json()["id"]
+        assert len(calls) == 1
+        assert client.get("/api/history").json()[0]["mode"] == "test"
+        assert client.get("/api/review?mode=live").json()["total"] == 0
+        review = client.get("/api/review?mode=test").json()
+        assert review["total"] == 1
+        assert review["summary"]["charges"] == [{"mode": "test", "currency": "USD", "minor": 999}]
+        invalid = client.get(f"/api/orders/{order_id}").json()
+        invalid["shipping"]["carrier_code"] = "ups"
+        with pytest.raises(PurchaseRejected):
+            provider.create_label(invalid, "invalid")
+        invalid["shipping"]["carrier_code"] = "stamps_com"
+        invalid["wms_order_no"] = "REAL-ORDER"
+        with pytest.raises(PurchaseRejected):
+            provider.create_label(invalid, "invalid")
+        invalid["wms_order_no"] = "USPS-PRIORITY-US-TEST-002"
+        invalid["shipping"]["insurance"] = "carrier"
+        with pytest.raises(PurchaseRejected):
+            provider.create_label(invalid, "invalid")
+        assert len(calls) == 1

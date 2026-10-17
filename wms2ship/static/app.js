@@ -163,7 +163,7 @@ async function showConfiguration(order) {
   }
   renderShipperChoices();
   const s = order.shipping || {};
-  const providerSelect = field(shipping, 'shipping.provider', 'Shipping provider', s.provider || 'fake', availableProviders.map(p => [p.code, p.mode === 'simulation' ? 'Simulation — no postage' : 'ShipStation V1 — live account']));
+  const providerSelect = field(shipping, 'shipping.provider', 'Shipping provider', s.provider || 'fake', availableProviders.map(p => [p.code, p.mode === 'simulation' ? 'Simulation — no postage' : p.mode === 'test' ? 'ShipStation USPS test label — not valid postage' : 'ShipStation V1 — paid labels']));
   const carrierSelect = field(shipping, 'shipping.carrier_code', 'Carrier', s.carrier_code, []);
   const serviceSelect = field(shipping, 'shipping.service_code', 'Service', s.service_code, []);
   const packageSelect = field(shipping, 'shipping.package_code', 'Package type', s.package_code, []);
@@ -174,8 +174,9 @@ async function showConfiguration(order) {
     serviceSelect.setOptions([]);
     packageSelect.setOptions([]);
     const modeInfo = availableProviders.find(p => p.code === providerCode);
-    document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
-    document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : 'Buy shipping label';
+    document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : providerCode === 'shipstation_test' ? 'USPS test label only — not valid postage. Uses testLabel: true; paid purchases remain disabled.' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
+    document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : providerCode === 'shipstation_test' ? 'Create USPS test label' : 'Buy shipping label';
+    document.querySelector('#create-label').disabled = providerCode === 'shipstation' && !modeInfo?.live_purchase_enabled;
     try {
       const catalog = await api(`/api/providers/${providerCode}/carriers`);
       if (currentOrder?.id !== order.id || currentOrder?.version !== order.version || providerSelect.value !== providerCode) return;
@@ -264,7 +265,7 @@ document.querySelector('#validate-order').addEventListener('click', async () => 
     const order = await saveConfiguration();
     const result = await api(`/api/orders/${order.id}/validate`, { method: 'POST', headers: { 'X-CSRF-Token': csrf } });
     target.replaceChildren();
-    if (result.valid) message(target, result.mode === 'simulation' ? 'Ready for a simulated purchase — not usable postage.' : 'Required fields are complete. Review the shipment before buying postage.');
+    if (result.valid) message(target, result.mode === 'simulation' ? 'Ready for a simulated purchase — not usable postage.' : result.mode === 'test' ? 'Ready for a USPS test label — not valid postage.' : 'Required fields are complete. Review the shipment before buying postage.');
     for (const issue of result.issues) message(target, `${issue.field}: ${issue.message}`);
   } catch (error) { target.textContent = error.message; }
 });
@@ -287,7 +288,7 @@ document.querySelector('#create-label').addEventListener('click', async event =>
       body: JSON.stringify({ version: order.version, package_id: order.packages[0].id, request_token: purchaseTokens.get(key), confirm_purchase: true })
     });
     await loadHistory(true);
-    target.textContent = ` ${attempt.mode === 'simulation' ? 'SIMULATION — NOT VALID POSTAGE.' : 'ShipStation purchase.'} Attempt ${attempt.id}: ${attempt.state}. ${attempt.labels.map(l => l.tracking_number).join(', ')}`;
+    target.textContent = ` ${attempt.mode === 'simulation' ? 'SIMULATION — NOT VALID POSTAGE.' : attempt.mode === 'test' ? 'USPS TEST LABEL — NOT VALID POSTAGE.' : 'ShipStation purchase.'} Attempt ${attempt.id}: ${attempt.state}. ${attempt.labels.map(l => l.tracking_number).join(', ')}`;
   } catch (error) { target.textContent = error.message; }
   finally { button.disabled = false; }
 });
@@ -409,7 +410,7 @@ field(reviewFields, 'start', 'Activity from (UTC)', '', null, 'date');
 field(reviewFields, 'end', 'Activity through (UTC)', '', null, 'date');
 field(reviewFields, 'search', 'Order, tracking, recipient, or shipper');
 field(reviewFields, 'state', 'Label status', 'all', ['all', 'not_started', 'prepared', 'sending', 'purchased', 'failed', 'uncertain'].map(code => [code, code.replaceAll('_', ' ')]));
-field(reviewFields, 'mode', 'Postage mode', 'all', [['all', 'All'], ['live', 'Live'], ['simulation', 'Simulation'], ['unassigned', 'No attempt']]);
+field(reviewFields, 'mode', 'Postage mode', 'all', [['all', 'All'], ['live', 'Live'], ['simulation', 'Simulation'], ['test', 'USPS test labels'], ['unassigned', 'No attempt']]);
 let reviewQuery = new URLSearchParams();
 let reviewOffset = 0;
 let reviewBusy = false;

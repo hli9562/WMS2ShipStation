@@ -54,7 +54,7 @@ class Origin(DraftModel):
 
 
 class Shipping(DraftModel):
-    provider: Literal["fake", "shipstation"] = "fake"
+    provider: Literal["fake", "shipstation", "shipstation_test"] = "fake"
     carrier_code: str = Field(default="", max_length=100)
     service_code: str = Field(default="", max_length=100)
     package_code: str = Field(default="", max_length=100)
@@ -155,6 +155,17 @@ def validate_order(order, catalog):
                 "packages.source_tracking",
                 "Existing WMS tracking requires investigation; purchase blocked.",
             )
+    if shipping.get("provider") == "shipstation_test":
+        if not order.get("wms_order_no", "").startswith("USPS-PRIORITY-US-TEST-"):
+            issue("order", "Use a dedicated USPS-PRIORITY-US-TEST- order for test labels.")
+        if shipping.get("carrier_code") != "stamps_com" or recipient.get("country") != "US":
+            issue(
+                "shipping.carrier_code", "USPS test labels require Stamps.com and a US destination."
+            )
+        if shipping.get("insurance") != "none" or any(
+            shipping.get(key) for key in ("saturday_delivery", "non_machinable", "contains_alcohol")
+        ):
+            issue("shipping", "USPS test labels require no insurance or shipping add-ons.")
     if shipping.get("provider") != catalog.get("provider", "fake"):
         issue(
             "shipping.provider",
@@ -183,7 +194,7 @@ def validate_order(order, catalog):
     if shipping.get("residential") is None:
         issue("shipping.residential", "Choose residential or commercial.")
     if (
-        shipping.get("provider") == "shipstation"
+        shipping.get("provider") in {"shipstation", "shipstation_test"}
         and shipping.get("confirmation") == "direct_signature"
         and not shipping.get("carrier_code", "").startswith("fedex")
     ):

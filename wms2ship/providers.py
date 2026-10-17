@@ -57,3 +57,7 @@ class FakeProvider:
 
     def create_label(self, snapshot, attempt_id):
         return PurchaseResult(attempt_id, attempt_id, f"SIMULATED-{uuid4()}", demo_pdf(), 0, "USD")
+
+
+def provider_mode(code):
+    return {"fake": "simulation", "shipstation_test": "test"}.get(code, "live")

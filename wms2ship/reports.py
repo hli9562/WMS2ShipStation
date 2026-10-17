@@ -14,6 +14,8 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from sqlalchemy import text
 
+from wms2ship.providers import provider_mode
+
 router = APIRouter(prefix="/api/review")
 
 
@@ -23,7 +25,7 @@ def filters(
     state: Literal[
         "all", "not_started", "prepared", "sending", "purchased", "failed", "uncertain"
     ] = "all",
-    mode: Literal["all", "live", "simulation", "unassigned"] = "all",
+    mode: Literal["all", "live", "simulation", "test", "unassigned"] = "all",
     search: str = Query("", max_length=100),
 ):
     if start and end and start > end:
@@ -62,9 +64,7 @@ def review_data(request, selected):
         for key in ("recipient_json", "origin_json", "shipping_json"):
             r.pop(key, None)
         r.update(
-            mode=("simulation" if r["provider_code"] == "fake" else "live")
-            if r["attempt_id"]
-            else "unassigned",
+            mode=provider_mode(r["provider_code"]) if r["attempt_id"] else "unassigned",
             recipient=recipient.get("name", ""),
             country=recipient.get("country", ""),
             shipper=origin.get("name", ""),
@@ -175,7 +175,12 @@ def report_workbook(rows, summary, selected):
             "One row per label attempt, or unstarted order. Retries appear separately.",
         ]
     )
-    overview.append(["Simulation", "Simulation tracking and charges are not valid postage."])
+    overview.append(
+        [
+            "Simulation",
+            "Simulation and test labels are not valid postage; test charges are not live spend.",
+        ]
+    )
     sheet = book.create_sheet("Shipments")
     sheet.append([title for _, title in COLUMNS])
     for row in rows:

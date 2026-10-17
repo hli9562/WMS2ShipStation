@@ -7,6 +7,7 @@ from fastapi.responses import Response
 from pypdf import PdfReader, PdfWriter, Transformation
 from sqlalchemy import text
 
+from wms2ship.providers import provider_mode
 from wms2ship.purchases import event, now, store_pdf
 
 router = APIRouter()
@@ -151,10 +152,7 @@ def history(
             .mappings()
             .all()
         )
-        return [
-            {**dict(row), "mode": "simulation" if row["provider_code"] == "fake" else "live"}
-            for row in rows
-        ]
+        return [{**dict(row), "mode": provider_mode(row["provider_code"])} for row in rows]
 
 
 @router.post("/api/labels/{label_id}/recover")

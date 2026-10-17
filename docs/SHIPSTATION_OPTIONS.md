@@ -29,8 +29,10 @@ Historical attempts preserve all selections in the request snapshot.
 
 - `/shipments/getrates` supports rate lookup; the current app does not display
   quotes. Do not interpret selecting a service as obtaining a price quote.
-- V1 documents `testLabel`; this app continues using its separate Simulation
-  provider for tests and sends `testLabel: false` for confirmed live purchases.
+- The separate USPS test-label provider sends `testLabel: true` for dedicated
+  US synthetic orders using Stamps.com, with no insurance/add-ons. Paid label
+  creation remains gated separately. Offline Simulation is still available.
+  History and reports identify USPS test activity as `test`, distinct from live.
 - Billing to another account/recipient/third party and order custom fields are
   documented for the order workflow. They are not exposed for standalone labels.
 - Manual-store/account configuration and the primary-account limitation remain.

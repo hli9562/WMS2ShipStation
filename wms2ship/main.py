@@ -20,7 +20,11 @@ from wms2ship.purchases import recover_interrupted
 from wms2ship.purchases import router as purchase_router
 from wms2ship.reports import router as review_router
 from wms2ship.sample import sample_workbook
-from wms2ship.shipstation import ProviderUnavailable, ShipStationProvider
+from wms2ship.shipstation import (
+    ProviderUnavailable,
+    ShipStationProvider,
+    ShipStationTestProvider,
+)
 
 ROOT = Path(__file__).parent
 
@@ -43,6 +47,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 settings.shipstation_api_key.get_secret_value(),
                 settings.shipstation_api_secret.get_secret_value(),
                 settings.enable_live_purchase,
+            )
+
+        if "shipstation" in app.state.providers:
+            app.state.providers["shipstation_test"] = ShipStationTestProvider(
+                settings.shipstation_api_key.get_secret_value(),
+                settings.shipstation_api_secret.get_secret_value(),
             )
 
         app.state.csrf_token = secrets.token_urlsafe(32)

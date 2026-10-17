@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from wms2ship.configuration import DraftModel, validate_order
-from wms2ship.providers import PurchaseRejected
+from wms2ship.providers import PurchaseRejected, provider_mode
 
 router = APIRouter()
 
@@ -73,7 +73,7 @@ def attempt_detail(engine, attempt_id):
         if not row:
             raise HTTPException(404, "Attempt not found.")
         result = dict(row)
-        result["mode"] = "simulation" if row["provider_code"] == "fake" else "live"
+        result["mode"] = provider_mode(row["provider_code"])
         result["labels"] = [
             dict(label)
             for label in db.execute(
