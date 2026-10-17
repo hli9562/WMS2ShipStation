@@ -84,7 +84,7 @@ Select an imported order to enter its complete Katy warehouse/contact address (a
 
 After saving complete per-order configuration, select **Create simulated label**. The fake provider returns tracking prefixed `SIMULATED-` and a watermarked PDF; these are not usable postage. Keep simulation data separate from future live orders: the same package guards protect both simulated and live outcomes.
 
-Purchase attempts persist before transmission. A timeout/crash becomes `uncertain` and blocks another purchase; an explicit provider rejection becomes `failed` and can be retried. A confirmed purchase with a missing PDF stays purchased and must have its existing artifact recovered. Reprinting and PDF download are added in issue #6.
+Purchase attempts persist before transmission. A timeout/crash becomes `uncertain` and blocks another purchase; an explicit provider rejection becomes `failed` and can be retried. A confirmed purchase with a missing PDF stays purchased and must have its existing artifact recovered. Use shipment history to open the saved original or Letter PDF; this never calls the purchase endpoint.
 
 `GET /api/label-attempts/{id}` exposes status and events. An operator who has investigated the provider outcome may submit `POST /api/label-attempts/{id}/reconcile` with `outcome` (`confirmed_not_purchased` or `purchased`) and an evidence explanation (at least 20 characters). Confirmed purchases also require `shipment_id` and `tracking`. Only uncertain attempts are eligible; no force-purchase bypass exists. Do not include secrets in evidence. Interrupted prepared/sending attempts become uncertain on local startup.
 
@@ -97,3 +97,9 @@ Select ShipStation in the order form to discover connected carriers, services an
 Leave `WMS_ENABLE_LIVE_PURCHASE=false` while reviewing and configuring. When ready for an actual paid shipment, set it to `true`, recreate the container, review the order, and explicitly confirm **Buy shipping label**. There is no automatic paid test or automatic label creation on import. The adapter calls only the V1 direct-label endpoint, not ShipStation order creation.
 
 The implementation has been tested with HTTP mocks, not your live account. Credentials, account entitlement, carrier restrictions, returned label layout and Canadian customs output require operator acceptance. No automatic purchase retry is implemented, including after rate limiting/server errors; uncertain results require investigation.
+
+## Print, history and artifact recovery
+
+Shipment history includes every attempt, outcome, provider reference and tracking number, with **Load more history** for older records. Use live tracking numbers to update WMS manually. **Open Letter PDF / print** opens a stored/generated Letter copy in your browser's PDF viewer; print at **Actual size / 100%** on Letter paper. The original provider PDF is preserved unchanged. Small labels are centered without enlargement; landscape pages can rotate to fit. Oversized pages that cannot fit Letter without scaling are rejected with an instruction to review the original. Physical printer margins and barcode readability still need operator verification.
+
+If an original PDF is missing/corrupt, restore the matching backup or download the same existing label from the provider. Do not purchase another label. `POST /api/labels/{label_id}/recover` accepts raw PDF bytes, `X-CSRF-Token`, and `X-Recovery-Evidence` (20–2000 characters). If a checksum was previously stored, recovery requires exactly the same original bytes. For purchases reconciled from an uncertain outcome without a previously saved file, the operator must verify that the recovered PDF belongs to the recorded provider shipment. Recovery only attaches a file to an existing confirmed purchase.

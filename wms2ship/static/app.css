@@ -18,3 +18,5 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; line-hei
 .fields input, .fields select { display: block; box-sizing: border-box; width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #bccdc2; border-radius: 5px; background: white; color: #18302c; }
 #configuration-mode { padding: 12px; background: #fff2ca; border-radius: 5px; }
 #validation-result { margin: 12px 0; }
+#history article { border-top: 1px solid #d9e2da; padding: 16px 0; }
+#history a { display: inline-block; margin: 6px 20px 6px 0; color: #19624d; font-weight: 600; }

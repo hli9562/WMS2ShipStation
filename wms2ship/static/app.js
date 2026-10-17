@@ -202,7 +202,35 @@ document.querySelector('#create-label').addEventListener('click', async event =>
       method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
       body: JSON.stringify({ version: order.version, package_id: order.packages[0].id, request_token: purchaseTokens.get(key), confirm_purchase: true })
     });
+    await loadHistory(true);
     target.textContent = ` ${attempt.mode === 'simulation' ? 'SIMULATION — NOT VALID POSTAGE.' : 'ShipStation purchase.'} Attempt ${attempt.id}: ${attempt.state}. ${attempt.labels.map(l => l.tracking_number).join(', ')}`;
   } catch (error) { target.textContent = error.message; }
   finally { button.disabled = false; }
 });
+
+let historyOffset = 0;
+async function loadHistory(reset = false) {
+  const target = document.querySelector('#history');
+  if (reset) { historyOffset = 0; target.replaceChildren(); }
+  const rows = await api(`/api/history?offset=${historyOffset}`);
+  if (!rows.length && historyOffset === 0) message(target, 'No label attempts yet.');
+  for (const row of rows) {
+    const card = document.createElement('article');
+    message(card, `${row.wms_order_no} · ${row.mode.toUpperCase()} · ${row.state}`, 'h3');
+    message(card, `Tracking: ${row.tracking_number || 'Not available'} · ${row.created_at}`);
+    message(card, `Attempt: ${row.attempt_id}`);
+    if (row.error_code) message(card, `Action required: ${row.error_code}`);
+    if (row.label_id) {
+      for (const kind of ['letter', 'original']) {
+        const link = message(card, kind === 'letter' ? 'Open Letter PDF / print' : 'Open original PDF', 'a');
+        link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`; link.target = '_blank'; link.rel = 'noopener';
+      }
+    }
+    target.append(card);
+  }
+  historyOffset += rows.length;
+  document.querySelector('#more-history').hidden = rows.length < 50;
+}
+document.querySelector('#refresh-history').addEventListener('click', () => loadHistory(true).catch(error => { status.textContent = error.message; }));
+document.querySelector('#more-history').addEventListener('click', () => loadHistory(false).catch(error => { status.textContent = error.message; }));
+loadHistory(true).catch(error => { status.textContent = error.message; });
