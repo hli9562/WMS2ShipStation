@@ -64,7 +64,12 @@ class Shipping(DraftModel):
     confirmation: Literal[
         "", "none", "delivery", "signature", "adult_signature", "direct_signature"
     ] = ""
-    insurance: Literal["", "none", "carrier", "shipsurance"] = ""
+    insurance: Literal[
+        "", "none", "carrier", "shipsurance", "provider", "xcover", "parcelguard"
+    ] = ""
+    saturday_delivery: bool = False
+    non_machinable: bool = False
+    contains_alcohol: bool = False
     insured_value: str = Field(default="", max_length=30)
     duties_payer: Literal["", "recipient"] = ""
 
@@ -160,16 +165,15 @@ def validate_order(order, catalog):
     if selected is None:
         issue("shipping.carrier_code", "Choose an available carrier.")
     else:
-        service = next(
-            (s for s in selected["services"] if s["code"] == shipping.get("service_code")), None
-        )
-        if service:
-            scope = "international" if recipient.get("country") == "CA" else "domestic"
-            if service.get(scope) is False:
-                issue("shipping.service_code", "Service does not support this destination scope.")
         for field, options in (("service_code", "services"), ("package_code", "packages")):
-            if shipping.get(field) not in {c["code"] for c in selected[options]}:
+            choice = next((c for c in selected[options] if c["code"] == shipping.get(field)), None)
+            if choice is None:
                 issue(f"shipping.{field}", "Choose an available option for the selected carrier.")
+            elif (
+                choice.get("international" if recipient.get("country") == "CA" else "domestic")
+                is False
+            ):
+                issue(f"shipping.{field}", "Option does not support this destination scope.")
     if not shipping.get("ship_date"):
         issue("shipping.ship_date", "Choose a ship date.")
     try:
@@ -178,6 +182,12 @@ def validate_order(order, catalog):
         issue("shipping.timezone", "Enter an IANA timezone, for example America/Chicago.")
     if shipping.get("residential") is None:
         issue("shipping.residential", "Choose residential or commercial.")
+    if (
+        shipping.get("provider") == "shipstation"
+        and shipping.get("confirmation") == "direct_signature"
+        and not shipping.get("carrier_code", "").startswith("fedex")
+    ):
+        issue("shipping.confirmation", "Direct signature is available for FedEx only.")
     if not shipping.get("confirmation"):
         issue("shipping.confirmation", "Choose a delivery confirmation option, including none.")
     if not shipping.get("insurance"):

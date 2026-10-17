@@ -222,3 +222,53 @@ def test_live_adapter_end_to_end_uses_mock_transport_only(tmp_path):
         label = result.json()["labels"][0]["id"]
         assert client.get(f"/api/labels/{label}/pdf").status_code == 200
         assert len([call for call in calls if call[0] == "POST"]) == 1
+
+
+@pytest.mark.parametrize(
+    "insurance", ["carrier", "shipsurance", "xcover", "parcelguard", "provider"]
+)
+def test_documented_insurance_and_advanced_options_payload(insurance):
+    order = snapshot()
+    order["shipping"].update(
+        insurance=insurance,
+        insured_value="123.45",
+        saturday_delivery=True,
+        non_machinable=True,
+        contains_alcohol=True,
+    )
+    payload = build_payload(order)
+    assert payload["insuranceOptions"] == {
+        "provider": insurance,
+        "insureShipment": True,
+        "insuredValue": 123.45,
+    }
+    assert payload["advancedOptions"] == {
+        "saturdayDelivery": True,
+        "nonMachinable": True,
+        "containsAlcohol": True,
+    }
+    assert payload["testLabel"] is False
+    assert "billToParty" not in payload["advancedOptions"]
+    legacy = snapshot()
+    assert "advancedOptions" not in build_payload(legacy)
+
+
+def test_catalog_preserves_package_destination_scope():
+    def handler(request):
+        return httpx.Response(
+            200,
+            json={
+                "/stores": [{"marketplaceId": 0, "active": True}],
+                "/carriers": [{"code": "fedex", "name": "FedEx", "primary": True}],
+                "/carriers/listservices": [{"code": "service", "name": "Service"}],
+                "/carriers/listpackages": [
+                    {"code": "package", "name": "Package", "domestic": True, "international": False}
+                ],
+            }[request.url.path],
+        )
+
+    provider = ShipStationProvider("k", "s", transport=httpx.MockTransport(handler))
+    try:
+        assert provider.catalog()["carriers"][0]["packages"][0]["international"] is False
+    finally:
+        provider.close()

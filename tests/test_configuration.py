@@ -107,3 +107,50 @@ def test_existing_tracking_blocks_readiness_and_simulation_is_explicit(tmp_path)
         result = client.post(f"/api/orders/{order_id}/validate", headers=headers).json()
         assert any(i["field"] == "packages.source_tracking" for i in result["issues"])
         assert client.get("/api/providers/fake/carriers").json()["mode"] == "simulation"
+
+
+def test_shipping_addons_persist_and_validate_carrier_scope(tmp_path):
+    from wms2ship.configuration import validate_order
+
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        upload(client, workbook())
+        order_id = client.get("/api/orders").json()[0]["id"]
+        order = client.get(f"/api/orders/{order_id}").json()
+        config = draft(order)
+        config["shipping"].update(
+            insurance="parcelguard",
+            insured_value="100.00",
+            saturday_delivery=True,
+            non_machinable=False,
+            contains_alcohol=True,
+        )
+        response = client.patch(
+            f"/api/orders/{order_id}",
+            json=config,
+            headers={"x-csrf-token": client.app.state.csrf_token},
+        )
+        assert response.status_code == 200
+        saved = response.json()
+        assert saved["shipping"]["insurance"] == "parcelguard"
+        assert saved["shipping"]["saturday_delivery"] is True
+        assert saved["shipping"]["non_machinable"] is False
+        saved["shipping"].update(
+            provider="shipstation", carrier_code="ups", confirmation="direct_signature"
+        )
+        catalog = {
+            "provider": "shipstation",
+            "carriers": [
+                {
+                    "code": "ups",
+                    "services": [{"code": "demo_ground", "international": True}],
+                    "packages": [{"code": "demo_parcel", "international": False}],
+                }
+            ],
+        }
+        issues = validate_order(saved, catalog)
+        assert any(i["field"] == "shipping.package_code" for i in issues)
+        assert any(i["field"] == "shipping.confirmation" for i in issues)
+        saved["shipping"]["carrier_code"] = "fedex"
+        catalog["carriers"][0]["code"] = "fedex"
+        catalog["carriers"][0]["packages"][0]["international"] = True
+        assert not validate_order(saved, catalog)

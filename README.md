@@ -139,3 +139,6 @@ simulation charges are totaled separately by currency; missing charges remain
 unknown. Historical contact/carrier details come from the saved purchase
 snapshot. Purchasing a label does not establish dispatch or delivery status.
 The manager view uses the current shared full-access local workspace.
+
+See [ShipStation V1 shipping options](docs/SHIPSTATION_OPTIONS.md) for the
+supported choices, carrier restrictions, and official API references.

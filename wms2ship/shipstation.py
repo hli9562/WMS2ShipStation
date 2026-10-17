@@ -46,6 +46,16 @@ def build_payload(snapshot):
         "shipTo": address(snapshot["recipient"], shipping["residential"]),
         "testLabel": False,
     }
+    advanced = {
+        remote: shipping.get(local, False)
+        for local, remote in (
+            ("saturday_delivery", "saturdayDelivery"),
+            ("non_machinable", "nonMachinable"),
+            ("contains_alcohol", "containsAlcohol"),
+        )
+    }
+    if any(advanced.values()):
+        payload["advancedOptions"] = advanced
     if shipping["insurance"] != "none":
         payload["insuranceOptions"] = {
             "provider": shipping["insurance"],
@@ -130,7 +140,10 @@ class ShipStationProvider:
                         {k: s[k] for k in ("code", "name", "domestic", "international") if k in s}
                         for s in services
                     ],
-                    "packages": [{"code": p["code"], "name": p["name"]} for p in packages],
+                    "packages": [
+                        {k: p[k] for k in ("code", "name", "domestic", "international") if k in p}
+                        for p in packages
+                    ],
                 }
             )
         return {

@@ -167,6 +167,7 @@ async function showConfiguration(order) {
   const carrierSelect = field(shipping, 'shipping.carrier_code', 'Carrier', s.carrier_code, []);
   const serviceSelect = field(shipping, 'shipping.service_code', 'Service', s.service_code, []);
   const packageSelect = field(shipping, 'shipping.package_code', 'Package type', s.package_code, []);
+  const confirmationSelect = field(shipping, 'shipping.confirmation', 'Delivery confirmation', s.confirmation, []);
   async function refreshCatalog(restore = false) {
     const providerCode = providerSelect.value;
     carrierSelect.setOptions([]);
@@ -185,7 +186,11 @@ async function showConfiguration(order) {
         const carrier = catalog.carriers.find(c => c.code === carrierSelect.value);
         const scope = order.recipient.country === 'CA' ? 'international' : 'domestic';
         options(serviceSelect, (carrier?.services || []).filter(s => s[scope] !== false), restoreValues ? s.service_code : '');
-        options(packageSelect, carrier?.packages || [], restoreValues ? s.package_code : '');
+        options(packageSelect, (carrier?.packages || []).filter(p => p[scope] !== false), restoreValues ? s.package_code : '');
+        const confirmation = confirmationSelect.value || (restoreValues ? s.confirmation : '');
+        const confirmations = [['none', 'None'], ['delivery', 'Delivery confirmation'], ['signature', 'Signature'], ['adult_signature', 'Adult signature']];
+        if (providerCode === 'fake' || carrierSelect.value.startsWith('fedex')) confirmations.push(['direct_signature', 'Direct signature (FedEx only)']);
+        confirmationSelect.setOptions(confirmations, confirmation);
       }
       options(carrierSelect, catalog.carriers, restore ? s.carrier_code : '');
       updateCarrier(restore);
@@ -197,9 +202,13 @@ async function showConfiguration(order) {
   field(shipping, 'shipping.ship_date', 'Ship date', s.ship_date, null, 'date');
   field(shipping, 'shipping.timezone', 'Timezone (e.g. America/Chicago)', s.timezone);
   field(shipping, 'shipping.residential', 'Recipient address type', s.residential, [['true', 'Residential'], ['false', 'Commercial']]);
-  field(shipping, 'shipping.confirmation', 'Delivery confirmation', s.confirmation, ['none', 'delivery', 'signature', 'adult_signature', 'direct_signature'].map(code => [code, code]));
-  field(shipping, 'shipping.insurance', 'Insurance', s.insurance, [['none', 'None'], ['carrier', 'Carrier'], ['shipsurance', 'Shipsurance']]);
+  field(shipping, 'shipping.insurance', 'Insurance', s.insurance, [['none', 'None'], ['carrier', 'Carrier'], ['shipsurance', 'Shipsurance'], ['xcover', 'XCover'], ['parcelguard', 'ParcelGuard'], ['provider', 'Other insurance (billed outside ShipStation)']]);
   field(shipping, 'shipping.insured_value', 'Insured value (USD, if insured)', s.insured_value);
+  for (const [key, label] of [['saturday_delivery', 'Saturday delivery'], ['non_machinable', 'Non-machinable handling'], ['contains_alcohol', 'Contains alcohol']]) {
+    field(shipping, `shipping.${key}`, label, String(s[key] ?? false), [['false', 'No'], ['true', 'Yes']]);
+  }
+  message(shipping, availableProviders.some(p => p.code === 'shipstation') ? 'Carrier, service, and package choices come from the selected provider account.' : 'Only Simulation is configured. Connect ShipStation credentials to load real carrier, service, and package choices.');
+  message(shipping, 'Insurance and additional services depend on your connected carrier, service, and account. Extra charges may apply. Other insurance is arranged and billed outside ShipStation.');
   const canadian = order.recipient.country === 'CA';
   document.querySelector('#customs-heading').hidden = !canadian;
   customs.hidden = !canadian;
@@ -229,6 +238,7 @@ async function saveConfiguration() {
   for (const input of document.querySelectorAll('#shipping-fields input')) {
     shipping[input.name.split('.')[1]] = formValue(input.name);
   }
+  for (const key of ['saturday_delivery', 'non_machinable', 'contains_alcohol']) shipping[key] = shipping[key] === 'true';
   shipping.ship_date = shipping.ship_date || null;
   shipping.residential = shipping.residential === '' ? null : shipping.residential === 'true';
   shipping.duties_payer = formValue('shipping.duties_payer');
