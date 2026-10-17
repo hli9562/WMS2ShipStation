@@ -6,7 +6,7 @@ const results = document.querySelector('#import-result');
 async function api(path, options = {}) {
   const response = await fetch(path, options);
   const data = await response.json();
-  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Request failed.');
+  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : (data.detail?.issues?.map(i => `${i.field}: ${i.message}`).join(' ') || 'Request failed.'));
   return data;
 }
 
@@ -151,4 +151,24 @@ document.querySelector('#validate-order').addEventListener('click', async () => 
     if (result.valid) message(target, 'Ready for a simulated purchase. No live carrier is connected.');
     for (const issue of result.issues) message(target, `${issue.field}: ${issue.message}`);
   } catch (error) { target.textContent = error.message; }
+});
+
+// Keep the request token until success/failure is known; an uncertain request must not be repurchased.
+const purchaseTokens = new Map();
+document.querySelector('#create-label').addEventListener('click', async event => {
+  if (!currentOrder) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  const target = document.querySelector('#purchase-result');
+  try {
+    const order = await saveConfiguration();
+    const key = `${order.id}:${order.version}`;
+    if (!purchaseTokens.has(key)) purchaseTokens.set(key, crypto.randomUUID());
+    const attempt = await api(`/api/orders/${order.id}/label-attempts`, {
+      method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version: order.version, package_id: order.packages[0].id, request_token: purchaseTokens.get(key), confirm_purchase: true })
+    });
+    target.textContent = `SIMULATION — NOT VALID POSTAGE. Attempt ${attempt.id}: ${attempt.state}. ${attempt.labels.map(l => l.tracking_number).join(', ')}`;
+  } catch (error) { target.textContent = error.message; }
+  finally { button.disabled = false; }
 });

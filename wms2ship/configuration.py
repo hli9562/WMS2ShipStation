@@ -127,7 +127,7 @@ def validate_order(order, catalog):
                 "packages.source_tracking",
                 "Existing WMS tracking requires investigation; purchase blocked.",
             )
-    if shipping.get("provider") != "fake":
+    if shipping.get("provider") != catalog.get("provider", "fake"):
         issue("shipping.provider", "Only the simulated provider is available at this checkpoint.")
     carriers = catalog.get("carriers", [])
     selected = next((c for c in carriers if c["code"] == shipping.get("carrier_code")), None)

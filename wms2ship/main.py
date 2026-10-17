@@ -13,6 +13,9 @@ from wms2ship.config import Settings
 from wms2ship.configuration import router as configuration_router
 from wms2ship.db import make_engine, migrate
 from wms2ship.import_routes import router as import_router
+from wms2ship.providers import FakeProvider
+from wms2ship.purchases import recover_interrupted
+from wms2ship.purchases import router as purchase_router
 
 ROOT = Path(__file__).parent
 
@@ -25,6 +28,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # Local single-process convenience. Cloud deploy will migrate separately.
         migrate(settings)
         app.state.engine = make_engine(settings)
+        recover_interrupted(app.state.engine)
+        app.state.providers = {"fake": FakeProvider()}
         app.state.csrf_token = secrets.token_urlsafe(32)
         yield
         app.state.engine.dispose()
@@ -33,6 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.include_router(import_router)
     app.include_router(configuration_router)
+    app.include_router(purchase_router)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     templates = Jinja2Templates(directory=str(ROOT / "templates"))
     app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")

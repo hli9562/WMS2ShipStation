@@ -2,7 +2,7 @@
 
 Local web workspace for manually exported XLWMS orders. Development is tracked in [GitHub issues](https://github.com/hli9562/WMS2ShipStation/issues).
 
-Current checkpoint: Docker application, migrations, XLSX import and order preview, duplicate detection, per-order configuration and readiness validation. Label purchase is not implemented yet.
+Current checkpoint: Docker application, migrations, XLSX import and order preview, duplicate detection, per-order configuration and readiness validation. Simulated label creation is available; live postage purchase is not connected yet.
 
 ## Run with Docker
 
@@ -79,3 +79,11 @@ API clients send raw XLSX bytes to `POST /api/imports?filename=export.xlsx`, wit
 ## Configure an order
 
 Select an imported order to enter its complete Katy warehouse/contact address (also used for returns), shipping options, and applicable Canada customs information. Save configuration or select **Check readiness**. Missing values, incompatible carrier choices, stale edits and existing WMS tracking prevent readiness. All fields are configured per order. Carrier choices are explicitly simulated until the live provider adapter is implemented. Current Canada validation requires USD values, item quantity matching and a 6–10 digit HS code; duties billing is recipient-only in this initial scope. This is an application eligibility check, not address certification or legal/customs advice.
+
+## Simulated label creation and recovery
+
+After saving complete per-order configuration, select **Create simulated label**. The fake provider returns tracking prefixed `SIMULATED-` and a watermarked PDF; these are not usable postage. Keep simulation data separate from future live orders: the same package guards protect both simulated and live outcomes.
+
+Purchase attempts persist before transmission. A timeout/crash becomes `uncertain` and blocks another purchase; an explicit provider rejection becomes `failed` and can be retried. A confirmed purchase with a missing PDF stays purchased and must have its existing artifact recovered. Reprinting and PDF download are added in issue #6.
+
+`GET /api/label-attempts/{id}` exposes status and events. An operator who has investigated the provider outcome may submit `POST /api/label-attempts/{id}/reconcile` with `outcome` (`confirmed_not_purchased` or `purchased`) and an evidence explanation (at least 20 characters). Confirmed purchases also require `shipment_id` and `tracking`. Only uncertain attempts are eligible; no force-purchase bypass exists. Do not include secrets in evidence. Interrupted prepared/sending attempts become uncertain on local startup.
