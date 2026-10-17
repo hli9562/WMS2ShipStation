@@ -45,3 +45,15 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; line-hei
 
 #shipper-choices { margin-bottom: 16px; }
 .tabs { flex-wrap: wrap; }
+.review-summary { display: flex; flex-wrap: wrap; gap: 16px; margin: 20px 0; }
+.review-summary > div { flex: 1; min-width: 120px; padding: 16px; background: #e5eee7; border-radius: 8px; }
+.review-summary strong { display: block; font-size: 1.8rem; }
+.review-summary span { display: block; margin-top: 4px; }
+.review-summary p { flex-basis: 100%; margin: 0; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+caption { text-align: left; font-weight: 600; padding: 12px 0; }
+th, td { text-align: left; padding: 12px; border-bottom: 1px solid #d9e2da; vertical-align: top; }
+th { background: #e5eee7; white-space: nowrap; }
+td { min-width: 100px; overflow-wrap: anywhere; }
+#download-report { display: inline-block; margin: 12px; color: #19624d; font-weight: 600; }

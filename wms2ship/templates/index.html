@@ -18,6 +18,7 @@
       <button type="button" id="tab-import" role="tab" aria-controls="panel-import" aria-selected="true" tabindex="0">WMS orders</button>
       <button type="button" id="tab-orders" role="tab" aria-controls="panel-orders" aria-selected="false" tabindex="-1">Shipping details</button>
       <button type="button" id="tab-history" role="tab" aria-controls="panel-history" aria-selected="false" tabindex="-1">History</button>
+      <button type="button" id="tab-review" role="tab" aria-controls="panel-review" aria-selected="false" tabindex="-1">Manager review</button>
       <button type="button" id="tab-settings" role="tab" aria-controls="panel-settings" aria-selected="false" tabindex="-1">Settings</button>
     </div>
     <section id="panel-import" role="tabpanel" aria-labelledby="tab-import" tabindex="0">
@@ -69,6 +70,20 @@
       <button type="button" id="refresh-history">Refresh history</button>
       <div id="history"></div>
       <button type="button" id="more-history" hidden>Load more history</button>
+    </section>
+    <section id="panel-review" role="tabpanel" aria-labelledby="tab-review" tabindex="0" hidden>
+      <h2>Manager shipment review</h2>
+      <p>Review label activity and exceptions. Label purchases do not confirm dispatch or delivery. Simulation is shown separately from live postage.</p>
+      <form id="review-filters">
+        <div class="fields" id="review-filter-fields"></div>
+        <button type="submit">Apply filters / refresh</button>
+        <a id="download-report" href="/api/review/report.xlsx">Download Excel report</a>
+      </form>
+      <p id="review-status" role="status" aria-live="polite"></p>
+      <div id="review-summary" class="review-summary"></div>
+      <p>Dates filter activity time in UTC. Each row is a label attempt or an order with no attempt. Failed retries remain visible.</p>
+      <div class="table-scroll" tabindex="0" aria-label="Scrollable shipment review table"><table id="review-table"><caption>Shipment review results</caption><thead><tr></tr></thead><tbody></tbody></table></div>
+      <button type="button" id="review-more" hidden>Load more results</button>
     </section>
     <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
       <h2>Shipper contacts</h2>

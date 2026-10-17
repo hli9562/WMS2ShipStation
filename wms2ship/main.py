@@ -18,6 +18,7 @@ from wms2ship.labels import router as label_router
 from wms2ship.providers import FakeProvider
 from wms2ship.purchases import recover_interrupted
 from wms2ship.purchases import router as purchase_router
+from wms2ship.reports import router as review_router
 from wms2ship.sample import sample_workbook
 from wms2ship.shipstation import ProviderUnavailable, ShipStationProvider
 
@@ -58,6 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(import_router)
     app.include_router(configuration_router)
     app.include_router(contacts_router)
+    app.include_router(review_router)
     app.include_router(purchase_router)
     app.include_router(label_router)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)

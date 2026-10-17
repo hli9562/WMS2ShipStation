@@ -124,3 +124,18 @@ the order, then save the configuration. Changes to a contact do not change
 previously saved orders. Shipper and return addresses still use the Katy, TX
 warehouse. Contacts are stored in the local database and included in backups;
 the new table is created automatically on application startup.
+
+### Manager shipment review and Excel reports
+
+Open **Manager review** to review orders without labels, label purchase attempts,
+tracking numbers, recorded charges, and exceptions. Filter by activity dates
+(inclusive, UTC), label status, postage mode, or order/tracking/contact search.
+Click **Apply filters / refresh**, then **Download Excel report** for a workbook
+with Summary and Shipments sheets containing all matching records across pages.
+
+Each record is a label attempt or an order without attempts. Rejected retries
+remain visible; orders and label attempts have separate counts. Live and
+simulation charges are totaled separately by currency; missing charges remain
+unknown. Historical contact/carrier details come from the saved purchase
+snapshot. Purchasing a label does not establish dispatch or delivery status.
+The manager view uses the current shared full-access local workspace.
