@@ -5,14 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf }}">
   <script src="/static/app.js" defer></script>
-  <title>WMS2ShipStation</title>
+  <title>Apex · WMS2ShipStation</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
   <main>
     <header class="app-header">
-      <h1>WMS2ShipStation</h1>
-      <span class="eyebrow">Katy warehouse · Local workspace</span>
+      <div class="brand">
+        <img class="brand-logo" src="/static/apex-logo.jpg" alt="Apex Technology Distribution, Inc." width="132" height="44">
+        <div class="brand-title">
+          <h1>WMS2ShipStation</h1>
+          <span class="eyebrow">Katy warehouse · Local workspace</span>
+        </div>
+      </div>
       <p id="status" role="status" aria-live="polite">Workspace ready. No shipping provider connected.</p>
     </header>
     <div class="tabs" role="tablist" aria-label="Workspace">

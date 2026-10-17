@@ -207,7 +207,7 @@ def report_workbook(rows, summary, selected):
         ws.freeze_panes = "A2"
         for cell in ws[1]:
             cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill("solid", fgColor="19624D")
+            cell.fill = PatternFill("solid", fgColor="082E58")
         for column in ws.columns:
             letter = get_column_letter(column[0].column)
             ws.column_dimensions[letter].width = min(
