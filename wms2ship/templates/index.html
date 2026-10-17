@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf }}">
+  <script src="/static/app.js" defer></script>
   <title>WMS2ShipStation</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -13,9 +14,24 @@
     <h1>WMS2ShipStation</h1>
     <p>Import WMS orders, review shipping details, and keep your label history in one place.</p>
     <section>
-      <h2>Workspace ready</h2>
-      <p>The local application and database are running. XLSX import is the next development step.</p>
-      <p>No shipping provider is connected and no postage can be purchased in this version.</p>
+      <h2>Import WMS orders</h2>
+      <p>Select an XLSX export. Importing only previews and saves order data; it never buys postage.</p>
+      <form id="import-form">
+        <label for="workbook">WMS export (.xlsx)</label>
+        <input type="file" id="workbook" accept=".xlsx" required>
+        <button type="submit">Import and preview</button>
+      </form>
+      <p id="status" role="status" aria-live="polite">Workspace ready. No shipping provider connected.</p>
+      <div id="import-result"></div>
+    </section>
+    <section>
+      <h2>Orders</h2>
+      <p>Existing orders are retained when you import them again.</p>
+      <div id="orders"></div>
+    </section>
+    <section id="preview-panel" hidden>
+      <h2>Order preview</h2>
+      <pre id="order-preview"></pre>
     </section>
   </main>
 </body>

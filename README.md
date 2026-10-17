@@ -2,7 +2,7 @@
 
 Local web workspace for manually exported XLWMS orders. Development is tracked in [GitHub issues](https://github.com/hli9562/WMS2ShipStation/issues).
 
-Current checkpoint: application scaffold, migrations, persistent local storage, and health page. Label purchase is not implemented yet.
+Current checkpoint: Docker application, migrations, XLSX import and order preview, duplicate detection, and source-row validation. Label purchase is not implemented yet.
 
 ## Run with Docker
 
@@ -67,3 +67,11 @@ For a rehearsal, use a separate empty Compose project/volume rather than deletin
 - [Development plan](docs/DEVELOPMENT_PLAN.md)
 
 Future hosting targets Google Cloud Run, Cloud SQL PostgreSQL, private Cloud Storage and Secret Manager. Local Docker remains supported.
+
+## Import an export
+
+On the home page choose an `.xlsx` file and select **Import and preview**. Select an order to see recipient, package measurements and item quantity. Import summaries show new, existing and invalid orders; row issues explain what needs review. Re-imports preserve existing configuration and measurements, including when incoming values differ. Existing WMS tracking is flagged for review.
+
+The initial parser supports a single unambiguous package and SKU per order using the documented export headers in English, Chinese, or bilingual form. Multi-package, multi-SKU and repeated picking-location mappings are blocked pending real export examples. Combined dimensions must state their unit; unitless weights are rejected. Limits: 10 MiB uploaded, 100 MiB uncompressed, 1,000 data rows/sheet, 128 columns. Identifiers must be Excel text to avoid leading-zero/precision loss. Required worksheet names are `出库单` and `拣货库位明细`. Source workbooks are parsed in memory and not retained as files. Necessary normalized row evidence is kept in the private database.
+
+API clients send raw XLSX bytes to `POST /api/imports?filename=export.xlsx`, with `X-CSRF-Token` from the home page's meta tag; use the same origin. This endpoint does not accept multipart bodies. The order/detail APIs contain private recipient data and are intended only for the protected local workspace.

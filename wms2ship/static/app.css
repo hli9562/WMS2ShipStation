@@ -6,3 +6,10 @@ h2 { font-size: 1.3rem; }
 p { line-height: 1.65; }
 .eyebrow { font-size: .75rem; letter-spacing: .14em; color: #4b7063; font-weight: 700; }
 section { background: white; border: 1px solid #d9e2da; border-radius: 12px; padding: 28px; margin-top: 32px; }
+label { display: block; margin-bottom: 8px; font-weight: 600; }
+input, button { font: inherit; }
+button { border: 0; border-radius: 6px; background: #19624d; color: white; padding: 10px 16px; cursor: pointer; margin: 8px; }
+button:disabled { opacity: .5; cursor: wait; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; line-height: 1.5; }
+#status { color: #355d4b; font-weight: 600; }
+#import-result p { color: #8d3f14; }
