@@ -79,7 +79,7 @@ def attempt_detail(engine, attempt_id):
             for label in db.execute(
                 text(
                     "SELECT id,tracking_number,provider_shipment_id,provider_label_id,"
-                    "charge_minor,currency "
+                    "charge_minor,currency,void_status,void_updated_at "
                     "FROM labels WHERE attempt_id=:id"
                 ),
                 {"id": attempt_id},
@@ -149,6 +149,14 @@ def reserve(engine, order_id, payload, provider, catalog):
                 raise HTTPException(422, {"message": "Shipment is not ready.", "issues": issues})
             if [p["id"] for p in snapshot["packages"]] != [payload.package_id]:
                 raise HTTPException(422, "Selected package does not belong to this order.")
+            if db.execute(
+                text(
+                    "SELECT 1 FROM labels WHERE package_id=:package "
+                    "AND void_status IN ('pending','uncertain')"
+                ),
+                {"package": payload.package_id},
+            ).first():
+                raise HTTPException(409, "Resolve the existing label void before purchasing again.")
             if payload.repeat_test:
                 previous = (
                     db.execute(
@@ -264,7 +272,10 @@ def finish_purchase(engine, settings, attempt_id, snapshot, result):
         )
         db.execute(
             text(
-                "INSERT INTO labels VALUES(:id,:attempt,:package,:shipment,:label,:tracking,"
+                "INSERT INTO labels (id,attempt_id,package_id,provider_shipment_id,"
+                "provider_label_id,"
+                "tracking_number,charge_minor,currency,created_at) "
+                "VALUES(:id,:attempt,:package,:shipment,:label,:tracking,"
                 ":charge,:currency,:time)"
             ),
             {

@@ -9,7 +9,13 @@ from time import monotonic
 
 import httpx
 
-from wms2ship.providers import PurchaseRejected, PurchaseResult, PurchaseUncertain
+from wms2ship.providers import (
+    PurchaseRejected,
+    PurchaseResult,
+    PurchaseUncertain,
+    VoidRejected,
+    VoidUncertain,
+)
 
 
 class ProviderUnavailable(Exception):
@@ -213,6 +219,30 @@ class ShipStationProvider:
             raise PurchaseRejected("Live purchasing is disabled.")
         return self._submit_payload(build_payload(snapshot))
 
+    def void_label(self, shipment_id):
+        try:
+            shipment = int(shipment_id)
+            if shipment <= 0:
+                raise ValueError()
+        except (ValueError, TypeError):
+            raise VoidRejected() from None
+        try:
+            response = self.client.post("/shipments/voidlabel", json={"shipmentId": shipment})
+        except httpx.HTTPError:
+            raise VoidUncertain() from None
+        if response.status_code in {400, 401, 403, 404, 405, 422}:
+            raise VoidRejected()
+        if not response.is_success:
+            raise VoidUncertain()
+        try:
+            approved = response.json()["approved"]
+        except (ValueError, KeyError, TypeError):
+            raise VoidUncertain() from None
+        if approved is False:
+            raise VoidRejected()
+        if approved is not True:
+            raise VoidUncertain()
+
     def _submit_payload(self, body):
         try:
             response = self.client.post("/shipments/createlabel", json=body)
@@ -266,6 +296,7 @@ class ShipStationTestProvider(ShipStationProvider):
 
     code = "shipstation_test"
     mode = "test"
+
     def create_label(self, snapshot, attempt_id):
         shipping = snapshot["shipping"]
         if (

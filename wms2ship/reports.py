@@ -43,7 +43,7 @@ def review_data(request, selected):
               COALESCE(a.state,'not_started') AS state, a.id AS attempt_id,
               a.error_code, a.request_snapshot_json, o.recipient_json, o.origin_json,
               o.shipping_json, p.provider_code, l.id AS label_id, l.tracking_number,
-              l.charge_minor, l.currency
+              l.charge_minor, l.currency, l.void_status, l.void_updated_at
             FROM orders o LEFT JOIN label_attempts a ON a.order_id=o.id
             LEFT JOIN provider_accounts p ON p.id=a.provider_account_id
             LEFT JOIN labels l ON l.attempt_id=a.id
@@ -143,6 +143,8 @@ COLUMNS = [
     ("tracking_number", "Tracking number"),
     ("charge_minor", "Charge"),
     ("currency", "Currency"),
+    ("void_status", "Void status"),
+    ("void_updated_at", "Void updated (UTC)"),
     ("error_code", "Exception"),
     ("attempt_id", "Attempt ID"),
     ("label_id", "Label ID"),

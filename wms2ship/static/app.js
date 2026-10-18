@@ -427,13 +427,14 @@ async function loadHistory(reset = false) {
       created.title = row.created_at;
       for (const value of [row.mode.toUpperCase(), row.state, row.provider_code, row.tracking_number || '—', row.charge_minor == null ? 'Not recorded' : `${(row.charge_minor / 100).toFixed(2)} ${row.currency}`, row.error_code || '—']) message(tr, value, 'td');
       const links = message(tr, '', 'td');
-      if (row.label_id) {
+      if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
         for (const kind of ['letter', 'original']) {
           const link = message(links, kind === 'letter' ? 'Letter PDF / print' : 'Original PDF', 'a');
           link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`;
           link.target = '_blank'; link.rel = 'noopener';
         }
       } else links.textContent = '—';
+      if (row.label_id) renderVoidAction(links, row);
       message(tr, row.attempt_id, 'td');
     }
     historyOffset += rows.length;
@@ -571,7 +572,7 @@ field(reviewFields, 'mode', 'Postage mode', 'all', [['all', 'All'], ['live', 'Li
 let reviewQuery = new URLSearchParams();
 let reviewOffset = 0;
 let reviewBusy = false;
-const reviewColumns = [['wms_order_no', 'WMS order'], ['state', 'Label status'], ['mode', 'Mode'], ['created_at', 'Activity (UTC)'], ['shipper', 'Shipper'], ['recipient', 'Recipient'], ['country', 'Destination'], ['carrier', 'Carrier'], ['service', 'Service'], ['tracking_number', 'Tracking'], ['charge_minor', 'Charge'], ['error_code', 'Exception']];
+const reviewColumns = [['wms_order_no', 'WMS order'], ['state', 'Label status'], ['mode', 'Mode'], ['void_status', 'Void status'], ['created_at', 'Activity (UTC)'], ['shipper', 'Shipper'], ['recipient', 'Recipient'], ['country', 'Destination'], ['carrier', 'Carrier'], ['service', 'Service'], ['tracking_number', 'Tracking'], ['charge_minor', 'Charge'], ['error_code', 'Exception']];
 for (const [, title] of reviewColumns) {
   const th = message(document.querySelector('#review-table thead tr'), title, 'th');
   th.scope = 'col';
@@ -624,12 +625,13 @@ async function loadReview(reset = true) {
         message(tr, value || '—', 'td');
       }
       const pdf = message(tr, '', 'td');
-      if (row.label_id) {
+      if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
         const link = message(pdf, 'Open / print', 'a');
         link.href = `/api/labels/${row.label_id}/pdf`;
         link.target = '_blank';
         link.rel = 'noopener';
       }
+      if (row.label_id) renderVoidAction(pdf, row);
     }
     reviewOffset += data.rows.length;
     more.hidden = reviewOffset >= data.total;
@@ -659,3 +661,37 @@ function updateOriginSummary(collapse = false) {
   if (collapse) document.querySelector('#origin-details').open = !complete;
 }
 document.querySelector('#origin-fields').addEventListener('input', () => updateOriginSummary());
+
+function renderVoidAction(container, row) {
+  message(container, `Void: ${row.void_status || 'active'}`, 'span');
+  if (row.void_status === 'voided' || row.void_status === 'pending') return;
+  const uncertain = row.void_status === 'uncertain';
+  const button = message(container, uncertain ? 'Resolve void status' : 'Void label', 'button');
+  button.type = 'button';
+  button.onclick = async () => {
+    let payload = { confirm_void: true };
+    let suffix = 'void';
+    if (uncertain) {
+      const outcome = window.prompt('First verify this label in ShipStation. Enter "voided" or "not_voided" to record the verified outcome.');
+      if (!['voided', 'not_voided'].includes(outcome)) return;
+      const evidence = window.prompt('Describe how you verified the outcome (at least 20 characters).');
+      if (!evidence || evidence.trim().length < 20) return;
+      payload = { outcome, evidence: evidence.trim() };
+      suffix = 'void/resolve';
+    } else if (!window.confirm(`Void unused label ${row.tracking_number || row.label_id} for order ${row.wms_order_no}? This cannot be undone. Refund eligibility and timing depend on the carrier.${row.mode === 'simulation' ? ' This is a simulation.' : row.mode === 'test' ? ' This is a test label.' : ''}`)) return;
+    button.disabled = true;
+    try {
+      const result = await api(`/api/labels/${row.label_id}/${suffix}`, {
+        method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      window.alert(result.void_status === 'voided' ? 'Label voided. Do not use any previously downloaded or printed copies. Refund processing depends on the carrier.' : result.void_status === 'rejected' ? 'ShipStation declined the void. Check the label in ShipStation before trying again.' : result.void_status === 'active' ? 'Verified that the label was not voided.' : 'Void outcome is uncertain. Verify in ShipStation, then use Resolve void status.');
+      if (result.void_status === 'voided' && currentOrder?.id === row.order_id) {
+        for (const key of purchaseTokens.keys()) if (key.startsWith(`${row.order_id}:`)) purchaseTokens.delete(key);
+      }
+      await loadHistory(true);
+      await loadReview(true);
+    } catch (error) { window.alert(error.message); }
+    finally { button.disabled = false; }
+  };
+}

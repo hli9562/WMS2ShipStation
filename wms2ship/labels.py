@@ -85,8 +85,13 @@ def label_pdf(
     engine = request.app.state.engine
     settings = request.app.state.settings
     with engine.connect() as db:
-        if not db.execute(text("SELECT 1 FROM labels WHERE id=:id"), {"id": label_id}).scalar():
+        status = db.execute(
+            text("SELECT void_status FROM labels WHERE id=:id"), {"id": label_id}
+        ).scalar()
+        if status is None:
             raise HTTPException(404, "Label not found.")
+        if status in ("pending", "uncertain", "voided"):
+            raise HTTPException(409, "This label is voided or its void outcome needs verification.")
     row = artifact(engine, label_id, kind)
     if row is not None:
         data = read_artifact(settings, row)
@@ -181,7 +186,7 @@ def history(
                 text(
                     "SELECT a.id AS attempt_id,a.state,a.error_code,a.created_at,o.id AS order_id,"
                     "o.wms_order_no,p.provider_code,l.id AS label_id,l.tracking_number,"
-                    "l.provider_shipment_id,"
+                    "l.provider_shipment_id,l.void_status,l.void_updated_at,"
                     "l.charge_minor,l.currency FROM label_attempts a "
                     "JOIN orders o ON o.id=a.order_id "
                     "JOIN provider_accounts p ON p.id=a.provider_account_id "

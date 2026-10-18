@@ -25,6 +25,8 @@ from wms2ship.shipstation import (
     ShipStationProvider,
     ShipStationTestProvider,
 )
+from wms2ship.voids import recover_interrupted_voids
+from wms2ship.voids import router as void_router
 
 ROOT = Path(__file__).parent
 
@@ -38,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         migrate(settings)
         app.state.engine = make_engine(settings)
         recover_interrupted(app.state.engine)
+        recover_interrupted_voids(app.state.engine)
         app.state.providers = {"fake": FakeProvider()}
         if (
             settings.shipstation_api_key.get_secret_value()
@@ -73,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(review_router)
     app.include_router(purchase_router)
     app.include_router(label_router)
+    app.include_router(void_router)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     templates = Jinja2Templates(directory=str(ROOT / "templates"))
     app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
