@@ -181,7 +181,9 @@ async function showConfiguration(order) {
     const modeInfo = availableProviders.find(p => p.code === providerCode);
     document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : providerCode === 'shipstation_test' ? 'USPS test label only — not valid postage. Uses testLabel: true; paid purchases remain disabled.' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
     document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : providerCode === 'shipstation_test' ? 'Create USPS test label' : 'Buy shipping label';
-    document.querySelector('#create-label').disabled = labelRequestInFlight || (providerCode === 'shipstation' && !modeInfo?.live_purchase_enabled);
+    const testOrderRequired = providerCode === 'shipstation_test' && !order.wms_order_no.startsWith('USPS-PRIORITY-US-TEST-');
+    if (testOrderRequired) document.querySelector('#configuration-mode').textContent = 'USPS test labels require a dedicated test order. Select USPS-PRIORITY-US-TEST-001 in WMS orders, or choose Simulation for this order.';
+    document.querySelector('#create-label').disabled = labelRequestInFlight || testOrderRequired || (providerCode === 'shipstation' && !modeInfo?.live_purchase_enabled);
     try {
       const catalog = await api(`/api/providers/${providerCode}/carriers`);
       if (currentOrder?.id !== order.id || currentOrder?.version !== order.version || providerSelect.value !== providerCode) return;
@@ -320,7 +322,8 @@ document.querySelector('#create-label').addEventListener('click', async event =>
   } catch (error) { target.textContent = error.message; }
   finally {
     labelRequestInFlight = false;
-    button.disabled = formValue('shipping.provider') === 'shipstation' && !availableProviders.find(p => p.code === 'shipstation')?.live_purchase_enabled;
+    const provider = formValue('shipping.provider');
+    button.disabled = (provider === 'shipstation_test' && !currentOrder.wms_order_no.startsWith('USPS-PRIORITY-US-TEST-')) || (provider === 'shipstation' && !availableProviders.find(p => p.code === 'shipstation')?.live_purchase_enabled);
   }
 });
 
