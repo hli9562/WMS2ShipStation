@@ -57,14 +57,29 @@ function message(parent, value, tag = 'p') {
   return element;
 }
 
-async function loadOrders() {
-  const data = await api('/api/orders');
+let importedOrders = [];
+function renderOrders() {
+  const query = document.querySelector('#order-search').value.trim().toLowerCase();
+  const onlyNew = document.querySelector('#new-orders-only').checked;
+  const visible = importedOrders.filter(row => (!onlyNew || !row.label_status) &&
+    `${row.wms_order_no} ${row.platform_reference || ''}`.toLowerCase().includes(query));
   orders.replaceChildren();
-  if (!data.length) message(orders, 'No orders imported yet.');
-  for (const row of data) {
-    const button = message(orders, `${row.wms_order_no} · ${row.platform_reference || 'No platform reference'}`, 'button');
-    button.type = 'button';
-    button.addEventListener('click', async () => {
+  document.querySelector('#order-list-status').textContent = `${visible.length} of ${importedOrders.length} orders · newest imported first`;
+  if (!visible.length) {
+    const cell = message(message(orders, '', 'tr'), importedOrders.length ? 'No matching orders.' : 'No orders imported yet.', 'td');
+    cell.colSpan = 4;
+  }
+  for (const row of visible) {
+    const tr = message(orders, '', 'tr');
+    if (!row.label_status) tr.className = 'new-order';
+    const link = message(message(tr, '', 'td'), row.wms_order_no, 'a');
+    link.href = '#orders';
+    message(tr, row.platform_reference || '—', 'td');
+    const date = message(tr, new Date(row.created_at).toLocaleString(), 'td');
+    date.title = row.created_at;
+    message(tr, row.label_status ? row.label_status.replaceAll('_', ' ') : 'New · no label attempts', 'td');
+    link.addEventListener('click', async event => {
+      event.preventDefault();
       try {
         const order = await api(`/api/orders/${row.id}`);
         await showConfiguration(order);
@@ -76,6 +91,13 @@ async function loadOrders() {
     });
   }
 }
+async function loadOrders() {
+  importedOrders = await api('/api/orders');
+  renderOrders();
+}
+document.querySelector('#order-search').addEventListener('input', renderOrders);
+document.querySelector('#new-orders-only').addEventListener('change', renderOrders);
+document.querySelector('#tab-import').addEventListener('click', () => loadOrders().catch(error => { status.textContent = error.message; }));
 
 document.querySelector('#import-form').addEventListener('submit', async event => {
   event.preventDefault();

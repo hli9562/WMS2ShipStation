@@ -56,7 +56,10 @@
       </div>
       <h2>Imported WMS orders</h2>
       <p>Select an order to review and edit its shipping details. Existing orders are retained when you import them again.</p>
-      <div id="orders"></div>
+      <label for="order-search">Find order<input id="order-search" type="search" placeholder="Order number or platform reference"></label>
+      <label><input id="new-orders-only" type="checkbox"> Only orders with no label attempts</label>
+      <p id="order-list-status" role="status" aria-live="polite"></p>
+      <div class="table-scroll" tabindex="0" aria-label="Imported order list"><table><caption>Imported orders · newest first</caption><thead><tr><th scope="col">Order number</th><th scope="col">Platform reference</th><th scope="col">Imported</th><th scope="col">Label status</th></tr></thead><tbody id="orders"></tbody></table></div>
     </section>
     <div id="panel-orders" role="tabpanel" aria-labelledby="tab-orders" tabindex="0" hidden>
       <section id="no-order-selected">

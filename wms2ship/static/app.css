@@ -125,3 +125,8 @@ td { min-width: 100px; overflow-wrap: anywhere; }
 #panel-history th { position: sticky; top: 0; z-index: 1; }
 #history td:nth-child(2) { min-width: 160px; }
 #history a { margin: 4px 0; display: block; white-space: nowrap; }
+
+#order-search { display: block; width: min(100%, 420px); box-sizing: border-box; padding: 8px; margin: 6px 0 10px; border: 1px solid var(--border); border-radius: 5px; }
+#orders .new-order { background: #faf6eb; }
+#orders a { font-weight: 600; }
+#order-list-status { color: var(--muted); font-size: .85rem; }
