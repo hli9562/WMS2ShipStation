@@ -125,6 +125,39 @@ loadOrders().catch(error => { status.textContent = error.message; });
 
 let currentOrder;
 let labelRequestInFlight = false;
+let readinessRevision = 0;
+let readinessTimer;
+let shipmentReady = false;
+let catalogLoaded = false;
+function updateCreateLabel() {
+  document.querySelector('#create-label').disabled = !shipmentReady || labelRequestInFlight;
+}
+function scheduleReadiness() {
+  const revision = ++readinessRevision;
+  clearTimeout(readinessTimer);
+  shipmentReady = false;
+  updateCreateLabel();
+  if (!currentOrder || !catalogLoaded) return;
+  document.querySelector('#validation-result').textContent = 'Checking shipping details…';
+  readinessTimer = setTimeout(async () => {
+    const target = document.querySelector('#validation-result');
+    try {
+      const result = await api(`/api/orders/${currentOrder.id}/readiness`, {
+        method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
+        body: JSON.stringify(configurationPayload())
+      });
+      if (revision !== readinessRevision) return;
+      target.replaceChildren();
+      shipmentReady = result.valid;
+      if (result.valid) message(target, 'Ready to create a test label.');
+      for (const issue of result.issues) message(target, `${issue.field}: ${issue.message}`);
+    } catch (error) {
+      if (revision !== readinessRevision) return;
+      target.textContent = error.message;
+    }
+    if (revision === readinessRevision) updateCreateLabel();
+  }, 350);
+}
 let availableProviders = [{code: 'fake', mode: 'simulation', live_purchase_enabled: false}];
 const providersReady = api('/api/providers').then(data => {
   availableProviders = data;
@@ -177,6 +210,8 @@ async function showConfiguration(order) {
   await providersReady;
   await contactsReady;
   currentOrder = order;
+  catalogLoaded = false;
+  scheduleReadiness();
   document.querySelector('#order-preview').textContent = JSON.stringify(order, null, 2);
   document.querySelector('#order-summary').textContent = `${order.wms_order_no} · ${order.recipient.country} · ${order.packages[0]?.weight_g || '?'} g`;
   document.querySelector('#validation-result').replaceChildren();
@@ -204,7 +239,8 @@ async function showConfiguration(order) {
     const modeInfo = availableProviders.find(p => p.code === providerCode);
     document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : providerCode === 'shipstation_test' ? 'Development mode: every label uses ShipStation testLabel: true. Works with any order number; labels are not valid postage. V1 supports USPS test labels.' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
     document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : providerCode === 'shipstation_test' ? 'Create label' : 'Buy shipping label';
-    document.querySelector('#create-label').disabled = labelRequestInFlight || (providerCode === 'shipstation' && !modeInfo?.live_purchase_enabled);
+    catalogLoaded = false;
+    scheduleReadiness();
     try {
       const catalog = await api(`/api/providers/${providerCode}/carriers`);
       if (currentOrder?.id !== order.id || currentOrder?.version !== order.version || providerSelect.value !== providerCode) return;
@@ -226,6 +262,8 @@ async function showConfiguration(order) {
       options(carrierSelect, catalog.carriers, catalog.carriers.some(c => c.code === savedCarrier) ? savedCarrier : defaultCarrier);
       updateCarrier(restore);
       carrierSelect.onchange = () => updateCarrier(false);
+      catalogLoaded = true;
+      scheduleReadiness();
     } catch (error) { document.querySelector('#validation-result').textContent = error.message; }
   }
   providerSelect.onchange = () => refreshCatalog(false);
@@ -279,8 +317,7 @@ function formValue(name) {
   if (element?.type === 'radio') return element.checked ? element.value : '';
   return element?.value || '';
 }
-async function saveConfiguration() {
-  if (!currentOrder) return;
+function configurationPayload() {
   const origin = {};
   for (const input of document.querySelectorAll('#origin-fields input')) origin[input.name.split('.')[1]] = input.value;
   const shipping = {};
@@ -298,30 +335,21 @@ async function saveConfiguration() {
       ...Object.fromEntries(['description', 'unit_value', 'currency', 'country_of_origin', 'hs_code'].map(key => [key, formValue(`customs.${index}.${key}`)]))
     })) };
   }
-  const order = await api(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' }, body: JSON.stringify({ version: currentOrder.version, origin, shipping, customs }) });
+  return { version: currentOrder.version, origin, shipping, customs };
+}
+async function saveConfiguration() {
+  const order = await api(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' }, body: JSON.stringify(configurationPayload()) });
   await showConfiguration(order);
   return order;
 }
-document.querySelector('#configuration-form').addEventListener('submit', async event => {
-  event.preventDefault();
-  try { await saveConfiguration(); document.querySelector('#validation-result').textContent = 'Configuration saved. Check readiness before purchase.'; }
-  catch (error) { document.querySelector('#validation-result').textContent = error.message; }
-});
-document.querySelector('#validate-order').addEventListener('click', async () => {
-  const target = document.querySelector('#validation-result');
-  try {
-    const order = await saveConfiguration();
-    const result = await api(`/api/orders/${order.id}/validate`, { method: 'POST', headers: { 'X-CSRF-Token': csrf } });
-    target.replaceChildren();
-    if (result.valid) message(target, result.mode === 'simulation' ? 'Ready for a simulated purchase — not usable postage.' : result.mode === 'test' ? 'Ready for a USPS test label — not valid postage.' : 'Required fields are complete. Review the shipment before buying postage.');
-    for (const issue of result.issues) message(target, `${issue.field}: ${issue.message}`);
-  } catch (error) { target.textContent = error.message; }
-});
+document.querySelector('#configuration-form').addEventListener('submit', event => event.preventDefault());
+document.querySelector('#configuration-form').addEventListener('input', scheduleReadiness);
+document.querySelector('#configuration-form').addEventListener('change', scheduleReadiness);
 
 // Keep the request token until success/failure is known; an uncertain request must not be repurchased.
 const purchaseTokens = new Map();
 document.querySelector('#create-label').addEventListener('click', async event => {
-  if (!currentOrder || labelRequestInFlight) return;
+  if (!currentOrder || labelRequestInFlight || !shipmentReady) return;
   labelRequestInFlight = true;
   const button = event.currentTarget;
   button.disabled = true;
@@ -345,8 +373,7 @@ document.querySelector('#create-label').addEventListener('click', async event =>
   } catch (error) { target.textContent = error.message; }
   finally {
     labelRequestInFlight = false;
-    const provider = formValue('shipping.provider');
-    button.disabled = (provider === 'shipstation' && !availableProviders.find(p => p.code === 'shipstation')?.live_purchase_enabled);
+    updateCreateLabel();
   }
 });
 
@@ -448,7 +475,7 @@ function renderShipperChoices() {
       document.querySelector('#configuration-form').elements.namedItem(`origin.${key}`).value = contact.address[key] || '';
     }
     updateOriginSummary(true);
-    document.querySelector('#validation-result').textContent = 'Shipper contact applied. Save configuration to keep it on this order.';
+    scheduleReadiness();
   };
   // A manually edited address is no longer an exact copy of a saved contact.
   document.querySelectorAll('#origin-fields input').forEach(input => {

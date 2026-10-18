@@ -194,3 +194,26 @@ def test_configured_account_always_saves_development_mode(tmp_path):
         assert saved.status_code == 200
         assert saved.json()["shipping"]["provider"] == "shipstation_test"
         assert not client.app.state.providers["shipstation"].enable_live
+
+
+def test_draft_readiness_checks_without_saving(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        upload(client, workbook())
+        order_id = client.get("/api/orders").json()[0]["id"]
+        order = client.get(f"/api/orders/{order_id}").json()
+        config = draft(order)
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        url = f"/api/orders/{order_id}/readiness"
+        ready = client.post(url, json=config, headers=headers)
+        assert ready.status_code == 200
+        assert ready.json()["valid"] is True
+        config["origin"]["phone"] = ""
+        blocked = client.post(url, json=config, headers=headers).json()
+        assert blocked["valid"] is False
+        assert any(issue["field"] == "origin.phone" for issue in blocked["issues"])
+        unchanged = client.get(f"/api/orders/{order_id}").json()
+        assert unchanged["version"] == order["version"]
+        assert unchanged["origin"] == order["origin"]
+        config["version"] += 1
+        assert client.post(url, json=config, headers=headers).status_code == 409
+        assert client.get("/api/history").json() == []

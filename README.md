@@ -80,7 +80,7 @@ API clients send raw XLSX bytes to `POST /api/imports?filename=export.xlsx`, wit
 
 ## Configure an order
 
-Select an imported order to enter its complete Katy warehouse/contact address (also used for returns), shipping options, and applicable Canada customs information. Save configuration or select **Check readiness**. Missing values, incompatible carrier choices, stale edits and existing WMS tracking prevent readiness. All fields are configured per order. Choose the simulated provider or, when configured, a ShipStation live account. Current Canada validation requires USD values, item quantity matching and a 6–10 digit HS code; duties billing is recipient-only in this initial scope. This is an application eligibility check, not address certification or legal/customs advice.
+Select an imported order to enter its complete Katy warehouse/contact address (also used for returns), shipping options, and applicable Canada customs information. Readiness checks run automatically as you edit. **Create label** stays disabled until the details are ready, then saves them when clicked. Missing values, incompatible carrier choices, stale edits and existing WMS tracking prevent readiness. All fields are configured per order. Without credentials the app uses simulation; configured ShipStation accounts use development test labels. Current Canada validation requires USD values, item quantity matching and a 6–10 digit HS code; duties billing is recipient-only in this initial scope. This is an application eligibility check, not address certification or legal/customs advice.
 
 ## Simulated label creation and recovery
 

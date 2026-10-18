@@ -300,3 +300,19 @@ def validate(order_id: str, request: Request):
         "mode": provider.mode,
         "version": order["version"],
     }
+
+
+@router.post("/api/orders/{order_id}/readiness")
+def draft_readiness(order_id: str, payload: OrderConfiguration, request: Request):
+    order = order_detail(order_id, request)
+    if order["version"] != payload.version:
+        raise HTTPException(409, "Order changed; reload before continuing.")
+    values = payload.model_dump(mode="json")
+    if request.app.state.settings.shipstation_api_key.get_secret_value():
+        values["shipping"]["provider"] = "shipstation_test"
+    order.update({key: values[key] for key in ("origin", "shipping", "customs")})
+    provider = request.app.state.providers.get(values["shipping"]["provider"])
+    if provider is None:
+        raise HTTPException(400, "Provider is not configured.")
+    issues = validate_order(order, provider.catalog())
+    return {"valid": not issues, "issues": issues, "mode": provider.mode}

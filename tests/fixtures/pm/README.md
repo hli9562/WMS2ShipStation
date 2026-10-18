@@ -65,7 +65,7 @@ has its own data volume; you can reuse it for additional tests.
 3. For Canada, also fill customs using synthetic values: Recipient duties payer,
    Merchandise, Return to sender, item description `Synthetic test item`, unit
    value `10.00`, currency `USD`, origin `US`, and HS code `123456`.
-4. **Save configuration → Check readiness → Create simulated label**. History
+4. **Complete shipping details → Create simulated label** (enabled automatically when ready). History
    should show **SIMULATION**, and the printable PDF must say it is not valid
    postage. Ordinary duplicate-purchase protection remains in place.
 5. Open **Manager review**, filter to Simulation, and download the Excel report.
