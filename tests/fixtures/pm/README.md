@@ -10,7 +10,7 @@ The files are not intended for real shipping.
 2. Install/start Docker Desktop, then run `docker compose up --build -d --wait`
    from the repository root. See the main [README](../../../README.md) for setup.
 3. Open <http://localhost:8080> in Chrome or Edge.
-4. In **WMS orders → Folder inbox → Choose folder**, select this checkout's
+4. In **WMS orders → Folder Monitor → Choose folder**, select this checkout's
    `tests/fixtures/pm` directory on your computer and allow read access.
    No Docker folder mount is needed. Alternatively, use the single-file picker.
 
@@ -34,7 +34,7 @@ Every workbook contains the WMS `出库单` and `拣货库位明细` sheets, one
 order, and one package per order. Valid package dimensions are 20 × 18.5 × 14 cm.
 There are no formulas, credentials, or real customer details.
 
-## Folder inbox checks
+## Folder Monitor checks
 
 - On a fresh database, all five filenames initially appear as **New**.
 - Use **Select new files → Import selected**. Identical contents in files 01

@@ -173,7 +173,7 @@ Duplicate tokens return the original attempt; sending/uncertain attempts block
 repeats until resolved. This exception applies only to USPS test mode and never
 releases a paid-purchase guard. Do not use test labels or tracking for fulfillment.
 
-### Folder inbox
+### Folder Monitor
 
 On **WMS orders**, click **Choose folder** and allow read access to your WMS
 export folder in Chrome or Edge. Top-level `.xlsx` files are checked every

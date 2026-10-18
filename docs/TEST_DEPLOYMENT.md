@@ -143,7 +143,7 @@ fresh isolated database; do not clear an existing workspace to match them.
 | Check | Expected result |
 | --- | --- |
 | Startup | Health 200; five workspace tabs; no startup/migration errors. |
-| Folder inbox | Choose `tests/fixtures/pm` in the local checkout. Five files initially appear. Changes appear after Refresh or a visible-tab check within about 15 seconds. |
+| Folder Monitor | Choose `tests/fixtures/pm` in the local checkout. Five files initially appear. Changes appear after Refresh or a visible-tab check within about 15 seconds. |
 | Import all five | Five unique valid orders in total. Files 01/04 are duplicate contents and process once. File 05 creates no order and shows an invalid-weight issue. After refresh: four imported files, one needs review, zero new. |
 | Repeat imports | No additional orders; existing edits/history retained. Imported files can be shown using Show imported files. |
 | Order list | Newest imports first, searchable order/reference, highlighted rows with no label attempts, and a working no-label-attempt filter. Order links open Shipping details. |

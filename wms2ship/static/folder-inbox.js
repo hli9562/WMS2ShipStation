@@ -227,7 +227,8 @@
   } else {
     storedFolder('get').then(async saved => {
       if (!saved || folder || generation) return;
-      folder = saved;
+      // Preserve folder selections saved by earlier local builds.
+      folder = saved.handle || saved;
       await scan();
     }).catch(() => { /* A folder can still be chosen without persistence. */ });
   }
