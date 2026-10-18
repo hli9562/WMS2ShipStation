@@ -172,3 +172,25 @@ def test_shipper_address_overrides_manual_timezone(tmp_path):
         )
         assert saved.status_code == 200
         assert saved.json()["shipping"]["timezone"] == "America/Chicago"
+
+
+def test_configured_account_always_saves_development_mode(tmp_path):
+    settings = Settings(
+        data_dir=tmp_path,
+        SHIPSTATION_API_KEY="dummy-key",
+        SHIPSTATION_API_SECRET="dummy-secret",
+        enable_live_purchase=True,
+    )
+    with TestClient(create_app(settings)) as client:
+        upload(client, workbook())
+        order_id = client.get("/api/orders").json()[0]["id"]
+        config = draft(client.get(f"/api/orders/{order_id}").json())
+        config["shipping"]["provider"] = "shipstation"
+        saved = client.patch(
+            f"/api/orders/{order_id}",
+            json=config,
+            headers={"x-csrf-token": client.app.state.csrf_token},
+        )
+        assert saved.status_code == 200
+        assert saved.json()["shipping"]["provider"] == "shipstation_test"
+        assert not client.app.state.providers["shipstation"].enable_live

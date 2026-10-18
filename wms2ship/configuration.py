@@ -155,12 +155,8 @@ def validate_order(order, catalog):
                 "Existing WMS tracking requires investigation; purchase blocked.",
             )
     if shipping.get("provider") == "shipstation_test":
-        if not order.get("wms_order_no", "").startswith("USPS-PRIORITY-US-TEST-"):
-            issue("order", "Use a dedicated USPS-PRIORITY-US-TEST- order for test labels.")
-        if shipping.get("carrier_code") != "stamps_com" or recipient.get("country") != "US":
-            issue(
-                "shipping.carrier_code", "USPS test labels require Stamps.com and a US destination."
-            )
+        if shipping.get("carrier_code") != "stamps_com":
+            issue("shipping.carrier_code", "ShipStation V1 test labels require Stamps.com (USPS).")
         if shipping.get("insurance") != "none" or any(
             shipping.get(key) for key in ("saturday_delivery", "non_machinable", "contains_alcohol")
         ):
@@ -251,6 +247,8 @@ def catalog(provider: str, request: Request):
 @router.patch("/api/orders/{order_id}")
 def configure(order_id: str, payload: OrderConfiguration, request: Request):
     values = payload.model_dump(mode="json")
+    if request.app.state.settings.shipstation_api_key.get_secret_value():
+        values["shipping"]["provider"] = "shipstation_test"
     origin = values["origin"]
     # Only the Katy warehouse is supported; never trust a manually supplied timezone.
     values["shipping"]["timezone"] = (

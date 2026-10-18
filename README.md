@@ -205,3 +205,9 @@ history. Filters apply before pagination, including older records.
 
 The shipping timezone is derived automatically from the supported Katy, TX, US
 shipper address (`America/Chicago`); no timezone entry is needed.
+
+During workflow exploration, configured ShipStation accounts use development labels
+for every imported order number. The UI defaults to test mode, server saves force
+that mode, and live purchases are disabled. Requests use V1 `testLabel: true`
+(USPS only), including destination-appropriate international services. Test labels
+can be generated repeatedly; invalid source data still needs correction.

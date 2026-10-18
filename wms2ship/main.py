@@ -46,7 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.providers["shipstation"] = ShipStationProvider(
                 settings.shipstation_api_key.get_secret_value(),
                 settings.shipstation_api_secret.get_secret_value(),
-                settings.enable_live_purchase,
+                False,  # Workflow exploration: all app label requests use test mode.
             )
 
         if "shipstation" in app.state.providers:

@@ -167,8 +167,9 @@ async function showConfiguration(order) {
   }
   renderShipperChoices();
   updateOriginSummary(true);
-  const s = order.shipping || {};
-  const providerSelect = field(shipping, 'shipping.provider', 'Shipping provider', s.provider || 'fake', availableProviders.map(p => [p.code, p.mode === 'simulation' ? 'Simulation — no postage' : p.mode === 'test' ? 'USPS test label' : 'ShipStation — paid labels']));
+  const s = { ...(order.shipping || {}) };
+  if (availableProviders.some(p => p.code === 'shipstation_test')) s.provider = 'shipstation_test';
+  const providerSelect = field(shipping, 'shipping.provider', 'Shipping provider', s.provider || 'fake', availableProviders.filter(p => availableProviders.some(item => item.code === 'shipstation_test') ? p.code === 'shipstation_test' : p.code === 'fake').map(p => [p.code, p.mode === 'test' ? 'ShipStation development — test labels' : 'Simulation — no postage']));
   const carrierSelect = field(shipping, 'shipping.carrier_code', 'Carrier', s.carrier_code, []);
   const serviceSelect = field(shipping, 'shipping.service_code', 'Service', s.service_code, []);
   const packageSelect = field(shipping, 'shipping.package_code', 'Package type', s.package_code, []);
@@ -179,11 +180,9 @@ async function showConfiguration(order) {
     serviceSelect.setOptions([]);
     packageSelect.setOptions([]);
     const modeInfo = availableProviders.find(p => p.code === providerCode);
-    document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : providerCode === 'shipstation_test' ? 'USPS test label only — not valid postage. Uses testLabel: true; paid purchases remain disabled.' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
-    document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : providerCode === 'shipstation_test' ? 'Create USPS test label' : 'Buy shipping label';
-    const testOrderRequired = providerCode === 'shipstation_test' && !order.wms_order_no.startsWith('USPS-PRIORITY-US-TEST-');
-    if (testOrderRequired) document.querySelector('#configuration-mode').textContent = 'USPS test labels require a dedicated test order. Select USPS-PRIORITY-US-TEST-001 in WMS orders, or choose Simulation for this order.';
-    document.querySelector('#create-label').disabled = labelRequestInFlight || testOrderRequired || (providerCode === 'shipstation' && !modeInfo?.live_purchase_enabled);
+    document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : providerCode === 'shipstation_test' ? 'Development mode: every label uses ShipStation testLabel: true. Works with any order number; labels are not valid postage. V1 supports USPS test labels.' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
+    document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : providerCode === 'shipstation_test' ? 'Create label' : 'Buy shipping label';
+    document.querySelector('#create-label').disabled = labelRequestInFlight || (providerCode === 'shipstation' && !modeInfo?.live_purchase_enabled);
     try {
       const catalog = await api(`/api/providers/${providerCode}/carriers`);
       if (currentOrder?.id !== order.id || currentOrder?.version !== order.version || providerSelect.value !== providerCode) return;
@@ -323,7 +322,7 @@ document.querySelector('#create-label').addEventListener('click', async event =>
   finally {
     labelRequestInFlight = false;
     const provider = formValue('shipping.provider');
-    button.disabled = (provider === 'shipstation_test' && !currentOrder.wms_order_no.startsWith('USPS-PRIORITY-US-TEST-')) || (provider === 'shipstation' && !availableProviders.find(p => p.code === 'shipstation')?.live_purchase_enabled);
+    button.disabled = (provider === 'shipstation' && !availableProviders.find(p => p.code === 'shipstation')?.live_purchase_enabled);
   }
 });
 

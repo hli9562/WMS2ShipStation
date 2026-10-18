@@ -166,12 +166,7 @@ def test_live_disabled_by_default_and_no_secret_in_http_output(tmp_path):
         config = draft(order)
         config["shipping"]["provider"] = "shipstation"
         saved = client.patch(f"/api/orders/{order_id}", json=config, headers=headers).json()
-        payload["version"] = saved["version"]
-        result = client.post(
-            f"/api/orders/{order_id}/label-attempts", json=payload, headers=headers
-        )
-        assert result.status_code == 400
-        assert "disabled" in result.json()["detail"]
+        assert saved["shipping"]["provider"] == "shipstation_test"
 
 
 def test_live_adapter_end_to_end_uses_mock_transport_only(tmp_path):
@@ -275,7 +270,8 @@ def test_catalog_preserves_package_destination_scope():
         provider.close()
 
 
-def test_usps_test_label_cannot_send_paid_request_and_is_reported_separately(tmp_path):
+@pytest.mark.parametrize("destination", ["US", "CA"])
+def test_usps_test_label_cannot_send_paid_request_and_is_reported_separately(tmp_path, destination):
     from sqlalchemy import text
 
     from wms2ship.shipstation import ShipStationTestProvider
@@ -317,16 +313,18 @@ def test_usps_test_label_cannot_send_paid_request_and_is_reported_separately(tmp
             "test-k", "test-s", transport=httpx.MockTransport(handler)
         )
         client.app.state.providers["shipstation_test"] = provider
-        order_id, headers, payload = setup_order(client, "USPS-PRIORITY-US-TEST-001")
+        order_id, headers, payload = setup_order(client, "PM-ANY-IMPORTED-ORDER")
         order = client.get(f"/api/orders/{order_id}").json()
-        order["recipient"].update(country="US", state="TX", city="Austin", postal="78703")
+        if destination == "US":
+            order["recipient"].update(country="US", state="TX", city="Austin", postal="78703")
         with client.app.state.engine.begin() as db:
             db.execute(
                 text("UPDATE orders SET recipient_json=:value WHERE id=:id"),
                 {"value": json.dumps(order["recipient"]), "id": order_id},
             )
         config = draft(order)
-        config["customs"] = None
+        if destination == "US":
+            config["customs"] = None
         config["shipping"].update(
             provider="shipstation_test",
             carrier_code="stamps_com",
@@ -358,9 +356,8 @@ def test_usps_test_label_cannot_send_paid_request_and_is_reported_separately(tmp
             provider.create_label(invalid, "invalid")
         invalid["shipping"]["carrier_code"] = "stamps_com"
         invalid["wms_order_no"] = "REAL-ORDER"
-        with pytest.raises(PurchaseRejected):
-            provider.create_label(invalid, "invalid")
-        invalid["wms_order_no"] = "USPS-PRIORITY-US-TEST-002"
+        # Any imported order number is eligible for development labels.
+        invalid["wms_order_no"] = "ANOTHER-XLSX-ORDER"
         invalid["shipping"]["insurance"] = "carrier"
         with pytest.raises(PurchaseRejected):
             provider.create_label(invalid, "invalid")

@@ -271,26 +271,19 @@ class ShipStationTestProvider(ShipStationProvider):
     def catalog(self):
         catalog = super().catalog()
         catalog["carriers"] = [c for c in catalog["carriers"] if c["code"] == "stamps_com"]
-        for carrier in catalog["carriers"]:
-            carrier["services"] = [s for s in carrier["services"] if s.get("domestic") is not False]
-            carrier["packages"] = [p for p in carrier["packages"] if p.get("domestic") is not False]
         return catalog
 
     def create_label(self, snapshot, attempt_id):
         shipping = snapshot["shipping"]
         if (
             shipping.get("carrier_code") != "stamps_com"
-            or snapshot["recipient"].get("country") != "US"
-            or not snapshot.get("wms_order_no", "").startswith("USPS-PRIORITY-US-TEST-")
             or shipping.get("insurance") != "none"
             or any(
                 shipping.get(key)
                 for key in ("saturday_delivery", "non_machinable", "contains_alcohol")
             )
         ):
-            raise PurchaseRejected(
-                "Use a synthetic US USPS test order without insurance or add-ons."
-            )
+            raise PurchaseRejected("Use USPS test mode without insurance or add-ons.")
         body = build_payload(snapshot)
         body["testLabel"] = True
         return self._submit_payload(body)
