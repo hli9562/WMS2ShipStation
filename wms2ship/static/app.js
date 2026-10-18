@@ -199,7 +199,9 @@ async function showConfiguration(order) {
         if (providerCode === 'fake' || carrierSelect.value.startsWith('fedex')) confirmations.push(['direct_signature', 'Direct signature (FedEx only)']);
         confirmationSelect.setOptions(confirmations, confirmation);
       }
-      options(carrierSelect, catalog.carriers, restore ? s.carrier_code : '');
+      const savedCarrier = restore ? s.carrier_code : '';
+      const defaultCarrier = providerCode === 'shipstation_test' ? 'stamps_com' : '';
+      options(carrierSelect, catalog.carriers, catalog.carriers.some(c => c.code === savedCarrier) ? savedCarrier : defaultCarrier);
       updateCarrier(restore);
       carrierSelect.onchange = () => updateCarrier(false);
     } catch (error) { document.querySelector('#validation-result').textContent = error.message; }
