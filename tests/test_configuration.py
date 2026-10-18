@@ -1,10 +1,118 @@
 from datetime import date
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.test_imports import upload, workbook
 from wms2ship.config import Settings
 from wms2ship.main import create_app
+from wms2ship.shipstation import build_payload
+
+
+def test_package_edits_preview_save_reimport_and_provider_payload(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        upload(client, workbook())
+        order_id = client.get("/api/orders").json()[0]["id"]
+        endpoint = f"/api/orders/{order_id}"
+        original = client.get(endpoint).json()
+        config = draft(original)
+        config["package"] = {
+            "id": original["packages"][0]["id"],
+            "weight_g": 1250,
+            "length_mm": 315,
+            "width_mm": 220,
+            "height_mm": 105,
+        }
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        ready = client.post(f"{endpoint}/readiness", json=config, headers=headers)
+        assert ready.status_code == 200
+        assert ready.json()["valid"], ready.json()
+        assert client.get(endpoint).json()["packages"] == original["packages"]
+        saved = client.patch(endpoint, json=config, headers=headers)
+        assert saved.status_code == 200
+        package = saved.json()["packages"][0]
+        assert all(package[key] == value for key, value in config["package"].items())
+        assert saved.json()["version"] == original["version"] + 1
+        payload = build_payload(saved.json())
+        assert payload["weight"]["units"] == "ounces"
+        assert payload["weight"]["value"] == pytest.approx(1250 / 28.349523125, abs=0.000001)
+        assert payload["dimensions"]["units"] == "inches"
+        for name, mm in (("length", 315), ("width", 220), ("height", 105)):
+            assert payload["dimensions"][name] == pytest.approx(mm / 25.4, abs=0.000001)
+        stale = client.patch(endpoint, json=config, headers=headers)
+        assert stale.status_code == 409
+        upload(client, workbook())
+        assert client.get(endpoint).json()["packages"][0] == package
+
+
+@pytest.mark.parametrize("field", ["weight_g", "length_mm", "width_mm", "height_mm"])
+@pytest.mark.parametrize("value", [0, -1, 1.5])
+def test_invalid_package_measurements_do_not_save(tmp_path, field, value):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        upload(client, workbook())
+        endpoint = f"/api/orders/{client.get('/api/orders').json()[0]['id']}"
+        original = client.get(endpoint).json()
+        config = draft(original)
+        config["package"] = {
+            key: original["packages"][0][key]
+            for key in ("id", "weight_g", "length_mm", "width_mm", "height_mm")
+        }
+        config["package"][field] = value
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        assert client.post(f"{endpoint}/readiness", json=config, headers=headers).status_code == 422
+        assert client.patch(endpoint, json=config, headers=headers).status_code == 422
+        assert client.get(endpoint).json() == original
+
+
+def test_package_edit_cannot_change_another_order(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        upload(client, workbook(order="FIRST"))
+        upload(client, workbook(order="SECOND"))
+        orders = client.get("/api/orders").json()
+        original = [client.get(f"/api/orders/{o['id']}").json() for o in orders]
+        config = draft(original[0])
+        config["package"] = {
+            "id": original[1]["packages"][0]["id"],
+            "weight_g": 1250, "length_mm": 315, "width_mm": 220, "height_mm": 105,
+        }
+        endpoint = f"/api/orders/{original[0]['id']}"
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        assert client.post(f"{endpoint}/readiness", json=config, headers=headers).status_code == 422
+        assert client.patch(endpoint, json=config, headers=headers).status_code == 422
+        assert [client.get(f"/api/orders/{o['id']}").json() for o in orders] == original
+
+
+def test_us_measurements_preserve_exact_values_for_carrier_and_reimport(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        upload(client, workbook())
+        endpoint = f"/api/orders/{client.get('/api/orders').json()[0]['id']}"
+        original = client.get(endpoint).json()
+        config = draft(original)
+        us = {"weight_oz": 16, "length_in": 10.25, "width_in": 7.5, "height_in": 4}
+        config["package"] = {
+            key: original["packages"][0][key]
+            for key in ("id", "weight_g", "length_mm", "width_mm", "height_mm")
+        }
+        config["package"]["us_units"] = us
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        ready = client.post(f"{endpoint}/readiness", json=config, headers=headers)
+        assert ready.status_code == 200
+        assert ready.json()["valid"], ready.json()
+        assert client.get(endpoint).json()["packages"] == original["packages"]
+        saved = client.patch(endpoint, json=config, headers=headers)
+        assert saved.status_code == 200
+        package = saved.json()["packages"][0]
+        assert all(package[key] == value for key, value in us.items())
+        payload = build_payload(saved.json())
+        assert payload["weight"] == {"value": 16, "units": "ounces"}
+        assert payload["dimensions"] == {
+            "units": "inches", "length": 10.25, "width": 7.5, "height": 4
+        }
+        upload(client, workbook())
+        assert client.get(endpoint).json()["packages"][0] == package
+        config["version"] = saved.json()["version"]
+        config["package"]["us_units"]["weight_oz"] = 0
+        assert client.patch(endpoint, json=config, headers=headers).status_code == 422
 
 
 def draft(order):
@@ -174,12 +282,13 @@ def test_shipper_address_overrides_manual_timezone(tmp_path):
         assert saved.json()["shipping"]["timezone"] == "America/Chicago"
 
 
-def test_configured_account_always_saves_development_mode(tmp_path):
+@pytest.mark.parametrize("enabled", [False, True])
+def test_configured_account_uses_explicit_live_setting(tmp_path, enabled):
     settings = Settings(
         data_dir=tmp_path,
         SHIPSTATION_API_KEY="dummy-key",
         SHIPSTATION_API_SECRET="dummy-secret",
-        enable_live_purchase=True,
+        enable_live_purchase=enabled,
     )
     with TestClient(create_app(settings)) as client:
         upload(client, workbook())
@@ -192,8 +301,10 @@ def test_configured_account_always_saves_development_mode(tmp_path):
             headers={"x-csrf-token": client.app.state.csrf_token},
         )
         assert saved.status_code == 200
-        assert saved.json()["shipping"]["provider"] == "shipstation_test"
-        assert not client.app.state.providers["shipstation"].enable_live
+        assert saved.json()["shipping"]["provider"] == (
+            "shipstation" if enabled else "shipstation_test"
+        )
+        assert client.app.state.providers["shipstation"].enable_live is enabled
 
 
 def test_draft_readiness_checks_without_saving(tmp_path):

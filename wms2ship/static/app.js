@@ -129,6 +129,12 @@ let readinessRevision = 0;
 let readinessTimer;
 let shipmentReady = false;
 let catalogLoaded = false;
+const packageUnits = [
+  ['weight_g', 'Weight (oz)', 28.349523125],
+  ['length_mm', 'Length (in)', 25.4],
+  ['width_mm', 'Width (in)', 25.4],
+  ['height_mm', 'Height (in)', 25.4]
+];
 function updateCreateLabel() {
   document.querySelector('#create-label').disabled = !shipmentReady || labelRequestInFlight;
 }
@@ -149,7 +155,7 @@ function scheduleReadiness() {
       if (revision !== readinessRevision) return;
       target.replaceChildren();
       shipmentReady = result.valid;
-      if (result.valid) message(target, 'Ready to create a test label.');
+      if (result.valid) message(target, result.mode === 'live' ? 'Ready to buy a shipping label. Your carrier account will be charged.' : result.mode === 'test' ? 'Ready to create a test label.' : 'Ready to create a simulated label.');
       for (const issue of result.issues) message(target, `${issue.field}: ${issue.message}`);
     } catch (error) {
       if (revision !== readinessRevision) return;
@@ -213,19 +219,35 @@ async function showConfiguration(order) {
   catalogLoaded = false;
   scheduleReadiness();
   document.querySelector('#order-preview').textContent = JSON.stringify(order, null, 2);
-  document.querySelector('#order-summary').textContent = `${order.wms_order_no} · ${order.recipient.country} · ${order.packages[0]?.weight_g || '?'} g`;
+  const weightOz = order.packages[0]?.weight_oz ?? order.packages[0]?.weight_g / 28.349523125;
+  document.querySelector('#order-summary').textContent = `${order.wms_order_no} · ${order.recipient.country} · ${weightOz ? Number(weightOz.toFixed(6)) : '?'} oz`;
   document.querySelector('#validation-result').replaceChildren();
   const origin = document.querySelector('#origin-fields');
   const shipping = document.querySelector('#shipping-fields');
   const customs = document.querySelector('#customs-fields');
-  [origin, shipping, customs].forEach(node => node.replaceChildren());
+  const packageFields = document.querySelector('#package-fields');
+  [origin, shipping, customs, packageFields].forEach(node => node.replaceChildren());
+  const packageData = order.packages[0] || {};
+  for (const [key, label, factor] of packageUnits) {
+    const usKey = key === 'weight_g' ? 'weight_oz' : key.replace('_mm', '_in');
+    const rawValue = packageData[usKey] ?? (packageData[key] == null ? null : packageData[key] / factor);
+    const value = rawValue == null ? '' : Number(rawValue.toFixed(6));
+    const input = field(packageFields, `package.${key}`, label, value, null, 'number');
+    input.dataset.originalDisplay = input.value;
+    input.dataset.originalMetric = packageData[key] ?? '';
+    input.dataset.originalUS = rawValue ?? '';
+    input.min = '0.000001';
+    input.step = 'any';
+    input.required = true;
+  }
   for (const [key, label] of Object.entries({ name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US or United States)' })) {
     field(origin, `origin.${key}`, label, order.origin?.[key]);
   }
   renderShipperChoices();
   updateOriginSummary(true);
   const s = { ...(order.shipping || {}) };
-  if (availableProviders.some(p => p.code === 'shipstation_test')) s.provider = 'shipstation_test';
+  if (availableProviders.some(p => p.code === 'shipstation' && p.live_purchase_enabled)) s.provider = 'shipstation';
+  else if (availableProviders.some(p => p.code === 'shipstation_test')) s.provider = 'shipstation_test';
   const providerSelect = document.createElement('input');
   providerSelect.type = 'hidden';
   providerSelect.name = 'shipping.provider';
@@ -339,7 +361,20 @@ function configurationPayload() {
       ...Object.fromEntries(['description', 'unit_value', 'currency', 'country_of_origin', 'hs_code'].map(key => [key, formValue(`customs.${index}.${key}`)]))
     })) };
   }
-  return { version: currentOrder.version, origin, shipping, customs };
+  const packageMeasurements = { id: currentOrder.packages[0]?.id, us_units: {} };
+  for (const [key, , factor] of packageUnits) {
+    const input = document.querySelector('#configuration-form').elements.namedItem(`package.${key}`);
+    // Keep exact US entries for display and carrier requests; metric columns
+    // remain available for imports and older clients.
+    const value = Number(input.value);
+    const usKey = key === 'weight_g' ? 'weight_oz' : key.replace('_mm', '_in');
+    packageMeasurements.us_units[usKey] = input.value === input.dataset.originalDisplay
+      ? Number(input.dataset.originalUS) : value;
+    packageMeasurements[key] = input.value === input.dataset.originalDisplay
+      ? Number(input.dataset.originalMetric)
+      : value > 0 ? Math.ceil(value * factor - 1e-9) : value;
+  }
+  return { version: currentOrder.version, origin, shipping, customs, package: packageMeasurements };
 }
 async function saveConfiguration() {
   const order = await api(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' }, body: JSON.stringify(configurationPayload()) });
@@ -360,7 +395,7 @@ document.querySelector('#create-label').addEventListener('click', async event =>
   const target = document.querySelector('#purchase-result');
   try {
     const selected = formValue('shipping.provider');
-    if (selected === 'shipstation' && !window.confirm('Buy a real shipping label for this order? This charges your connected carrier account.')) return;
+    if (selected === 'shipstation' && !window.confirm(`Buy a real shipping label for order ${currentOrder.wms_order_no}? This charges your connected carrier account.`)) return;
     const order = await saveConfiguration();
     const key = `${order.id}:${order.version}`;
     if (!purchaseTokens.has(key)) purchaseTokens.set(key, crypto.randomUUID());
@@ -428,8 +463,8 @@ async function loadHistory(reset = false) {
       for (const value of [row.mode.toUpperCase(), row.state, row.provider_code, row.tracking_number || '—', row.charge_minor == null ? 'Not recorded' : `${(row.charge_minor / 100).toFixed(2)} ${row.currency}`, row.error_code || '—']) message(tr, value, 'td');
       const links = message(tr, '', 'td');
       if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
-        for (const kind of ['letter', 'original']) {
-          const link = message(links, kind === 'letter' ? 'Letter PDF / print' : 'Original PDF', 'a');
+        for (const kind of ['original', 'letter']) {
+          const link = message(links, kind === 'original' ? 'Label PDF / thermal print' : 'Letter PDF (office printer)', 'a');
           link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`;
           link.target = '_blank'; link.rel = 'noopener';
         }
@@ -627,8 +662,8 @@ async function loadReview(reset = true) {
       }
       const pdf = message(tr, '', 'td');
       if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
-        const link = message(pdf, 'Open / print', 'a');
-        link.href = `/api/labels/${row.label_id}/pdf`;
+        const link = message(pdf, 'Label PDF / thermal print', 'a');
+        link.href = `/api/labels/${row.label_id}/pdf?kind=original`;
         link.target = '_blank';
         link.rel = 'noopener';
       }

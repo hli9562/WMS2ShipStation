@@ -35,10 +35,12 @@ def snapshot():
     return order
 
 
-def test_payload_metric_units_customs_and_no_order_creation():
+def test_payload_us_units_customs_and_no_order_creation():
     payload = build_payload(snapshot())
-    assert payload["weight"] == {"value": 460, "units": "grams"}
-    assert payload["dimensions"]["width"] == 18.5
+    assert payload["weight"]["units"] == "ounces"
+    assert payload["weight"]["value"] == pytest.approx(460 / 28.349523125, abs=0.000001)
+    assert payload["dimensions"]["units"] == "inches"
+    assert payload["dimensions"]["width"] == pytest.approx(185 / 25.4, abs=0.000001)
     assert payload["shipFrom"]["city"] == "Katy"
     assert payload["internationalOptions"]["customsItems"][0]["value"] == 10
     assert "orderId" not in payload
@@ -178,6 +180,7 @@ def test_live_adapter_end_to_end_uses_mock_transport_only(tmp_path):
             assert request.url.path == "/shipments/createlabel"
             body = json.loads(request.content)
             assert body["shipTo"]["country"] == "CA"
+            assert body["testLabel"] is False
             return httpx.Response(
                 200,
                 json={
@@ -199,7 +202,14 @@ def test_live_adapter_end_to_end_uses_mock_transport_only(tmp_path):
             }[request.url.path],
         )
 
-    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+    settings = Settings(
+        data_dir=tmp_path,
+        SHIPSTATION_API_KEY="mock-key",
+        SHIPSTATION_API_SECRET="mock-secret",
+        enable_live_purchase=True,
+    )
+    with TestClient(create_app(settings)) as client:
+        client.app.state.providers["shipstation"].close()
         client.app.state.providers["shipstation"] = ShipStationProvider(
             "mock-key", "mock-secret", True, httpx.MockTransport(handler)
         )
@@ -208,15 +218,43 @@ def test_live_adapter_end_to_end_uses_mock_transport_only(tmp_path):
         config = draft(order)
         config["shipping"]["provider"] = "shipstation"
         saved = client.patch(f"/api/orders/{order_id}", json=config, headers=headers).json()
+        assert saved["shipping"]["provider"] == "shipstation"
+        ready = client.post(
+            f"/api/orders/{order_id}/readiness",
+            json=draft(saved),
+            headers=headers,
+        ).json()
+        assert ready["mode"] == "live"
+        assert ready["valid"], ready
+        assert not any(call[0] == "POST" for call in calls)
         payload["version"] = saved["version"]
+        unconfirmed = client.post(
+            f"/api/orders/{order_id}/label-attempts",
+            json={**payload, "confirm_purchase": False},
+            headers=headers,
+        )
+        assert unconfirmed.status_code == 400
+        assert not any(call[0] == "POST" for call in calls)
         result = client.post(
             f"/api/orders/{order_id}/label-attempts", json=payload, headers=headers
         )
         assert result.json()["state"] == "purchased", result.text
+        assert result.json()["mode"] == "live"
         assert result.json()["labels"][0]["tracking_number"] == "MOCK-ONLY-TRACKING"
         assert len([call for call in calls if call[0] == "POST"]) == 1
         label = result.json()["labels"][0]["id"]
         assert client.get(f"/api/labels/{label}/pdf").status_code == 200
+        duplicate = client.post(
+            f"/api/orders/{order_id}/label-attempts", json=payload, headers=headers
+        )
+        assert duplicate.json()["id"] == result.json()["id"]
+        repeated = client.post(
+            f"/api/orders/{order_id}/label-attempts",
+            json={**payload, "request_token": str(uuid4())},
+            headers=headers,
+        )
+        assert repeated.status_code == 409
+        assert client.get("/api/history").json()[0]["mode"] == "live"
         assert len([call for call in calls if call[0] == "POST"]) == 1
 
 

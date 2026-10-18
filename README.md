@@ -106,7 +106,7 @@ The implementation has been tested with HTTP mocks, not your live account. Crede
 
 ## Print, history and artifact recovery
 
-Shipment history includes every attempt, outcome, provider reference and tracking number, with **Load more history** for older records. Use live tracking numbers to update WMS manually. **Open Letter PDF / print** opens a stored/generated Letter copy in your browser's PDF viewer; print at **Actual size / 100%** on Letter paper. The original provider PDF is preserved unchanged. Small labels are centered without enlargement; landscape pages can rotate to fit. Oversized pages that cannot fit Letter without scaling are rejected with an instruction to review the original. Physical printer margins and barcode readability still need operator verification.
+Shipment history includes every attempt, outcome, provider reference and tracking number, with **Load more history** for older records. Use live tracking numbers to update WMS manually. **Label PDF / thermal print** opens the unchanged original provider PDF, which is also the default PDF endpoint output. For 4 × 6 inch thermal stock, select matching paper, **Actual size / 100%**, and no margins in the print dialog. The app adds no surrounding Letter page or white border. Carrier artwork and barcode quiet zones are preserved. **Letter PDF (office printer)** remains available for Letter paper and centers the original without enlargement. Physical printer margins and barcode readability still need operator verification.
 
 If an original PDF is missing/corrupt, restore the matching backup or download the same existing label from the provider. Do not purchase another label. `POST /api/labels/{label_id}/recover` accepts raw PDF bytes, `X-CSRF-Token`, and `X-Recovery-Evidence` (20–2000 characters). If a checksum was previously stored, recovery requires exactly the same original bytes. For purchases reconciled from an uncertain outcome without a previously saved file, the operator must verify that the recovered PDF belongs to the recorded provider shipment. Recovery only attaches a file to an existing confirmed purchase.
 
@@ -210,11 +210,13 @@ history. Filters apply before pagination, including older records.
 The shipping timezone is derived automatically from the supported Katy, TX, US
 shipper address (`America/Chicago`); no timezone entry is needed.
 
-During workflow exploration, configured ShipStation accounts use development labels
-for every imported order number. The UI defaults to test mode, server saves force
-that mode, and live purchases are disabled. Requests use V1 `testLabel: true`
-(USPS only), including destination-appropriate international services. Test labels
-can be generated repeatedly; invalid source data still needs correction.
+With configured ShipStation credentials, `WMS_ENABLE_LIVE_PURCHASE=false` selects
+development labels (`testLabel: true`) for imported orders. Setting it to `true`
+and recreating the server selects the paid ShipStation V1 create-label API
+(`testLabel: false`). The button changes to **Buy shipping label** and asks for
+confirmation before each purchase. Test labels can be repeated intentionally;
+paid labels retain duplicate-purchase guards. Existing history keeps its original
+mode, and importing files never buys labels automatically.
 
 In Settings, mark a saved contact as the default shipper. A single saved contact
 is used automatically. The default fills orders with no shipper details; existing

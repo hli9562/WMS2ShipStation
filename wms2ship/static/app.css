@@ -189,3 +189,12 @@ caption { padding: 6px 0; }
 .import-tools #folder-table th:nth-child(5) { width: 29%; }
 
 #shipping-fields > [data-field="shipping.carrier_code"] { grid-column: 1 / -1; }
+
+.shipping-main { display: grid; gap: 10px; min-width: 0; }
+#package-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 700px) {
+  #package-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 400px) {
+  #package-fields { grid-template-columns: 1fr; }
+}

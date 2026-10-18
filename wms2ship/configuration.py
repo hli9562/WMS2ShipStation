@@ -1,4 +1,5 @@
 import json
+import math
 import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -89,11 +90,41 @@ class Customs(DraftModel):
     items: list[Declaration] = Field(default_factory=list, max_length=100)
 
 
+class USMeasurements(DraftModel):
+    weight_oz: float = Field(gt=0, allow_inf_nan=False)
+    length_in: float = Field(gt=0, allow_inf_nan=False)
+    width_in: float = Field(gt=0, allow_inf_nan=False)
+    height_in: float = Field(gt=0, allow_inf_nan=False)
+
+
+class PackageMeasurements(DraftModel):
+    id: str
+    weight_g: int = Field(gt=0)
+    length_mm: int = Field(gt=0)
+    width_mm: int = Field(gt=0)
+    height_mm: int = Field(gt=0)
+    us_units: USMeasurements | None = None
+
+    def storage_values(self):
+        values = self.model_dump(exclude={"us_units"})
+        for metric, us, factor in (
+            ("weight_g", "weight_oz", 28.349523125),
+            ("length_mm", "length_in", 25.4),
+            ("width_mm", "width_in", 25.4),
+            ("height_mm", "height_in", 25.4),
+        ):
+            values[us] = getattr(self.us_units, us) if self.us_units else None
+            if self.us_units:
+                values[metric] = max(1, math.ceil(values[us] * factor - 1e-9))
+        return values
+
+
 class OrderConfiguration(DraftModel):
     version: int = Field(ge=1)
     origin: Origin
     shipping: Shipping
     customs: Customs | None = None
+    package: PackageMeasurements | None = None
 
 
 # Explicit simulated choices; never passed to a live shipping provider.
@@ -247,8 +278,10 @@ def catalog(provider: str, request: Request):
 @router.patch("/api/orders/{order_id}")
 def configure(order_id: str, payload: OrderConfiguration, request: Request):
     values = payload.model_dump(mode="json")
-    if request.app.state.settings.shipstation_api_key.get_secret_value():
-        values["shipping"]["provider"] = "shipstation_test"
+    if "shipstation" in request.app.state.providers:
+        values["shipping"]["provider"] = (
+            "shipstation" if request.app.state.settings.enable_live_purchase else "shipstation_test"
+        )
     origin = values["origin"]
     # Only the Katy warehouse is supported; never trust a manually supplied timezone.
     values["shipping"]["timezone"] = (
@@ -282,6 +315,18 @@ def configure(order_id: str, payload: OrderConfiguration, request: Request):
                 409 if exists else 404,
                 "Order changed; reload before saving." if exists else "Order not found.",
             )
+        if payload.package is not None:
+            result = db.execute(
+                text(
+                    "UPDATE packages SET weight_g=:weight_g,length_mm=:length_mm,"
+                    "width_mm=:width_mm,height_mm=:height_mm,weight_oz=:weight_oz,"
+                    "length_in=:length_in,width_in=:width_in,height_in=:height_in "
+                    "WHERE id=:id AND order_id=:order_id"
+                ),
+                {**payload.package.storage_values(), "order_id": order_id},
+            )
+            if result.rowcount != 1:
+                raise HTTPException(422, "Package does not belong to this order.")
     return order_detail(order_id, request)
 
 
@@ -308,9 +353,16 @@ def draft_readiness(order_id: str, payload: OrderConfiguration, request: Request
     if order["version"] != payload.version:
         raise HTTPException(409, "Order changed; reload before continuing.")
     values = payload.model_dump(mode="json")
-    if request.app.state.settings.shipstation_api_key.get_secret_value():
-        values["shipping"]["provider"] = "shipstation_test"
+    if "shipstation" in request.app.state.providers:
+        values["shipping"]["provider"] = (
+            "shipstation" if request.app.state.settings.enable_live_purchase else "shipstation_test"
+        )
     order.update({key: values[key] for key in ("origin", "shipping", "customs")})
+    if payload.package is not None:
+        package = next((p for p in order["packages"] if p["id"] == payload.package.id), None)
+        if package is None:
+            raise HTTPException(422, "Package does not belong to this order.")
+        package.update(payload.package.storage_values())
     provider = request.app.state.providers.get(values["shipping"]["provider"])
     if provider is None:
         raise HTTPException(400, "Provider is not configured.")

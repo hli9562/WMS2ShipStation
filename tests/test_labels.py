@@ -50,12 +50,16 @@ def test_reprint_history_and_missing_artifact_do_not_repurchase(tmp_path):
         for _ in range(2):
             response = client.get(f"/api/labels/{label_id}/pdf")
             assert response.status_code == 200
+            assert response.content == demo_pdf()
             assert tuple(PdfReader(io.BytesIO(response.content)).pages[0].mediabox) == (
                 0,
                 0,
-                612,
-                792,
+                288,
+                432,
             )
+        letter = client.get(f"/api/labels/{label_id}/pdf?kind=letter")
+        assert letter.status_code == 200
+        assert tuple(PdfReader(io.BytesIO(letter.content)).pages[0].mediabox) == (0, 0, 612, 792)
         assert client.get(f"/api/labels/{label_id}/pdf?kind=original").content == demo_pdf()
         history = client.get("/api/history").json()
         assert history[0]["tracking_number"].startswith("SIMULATED-")

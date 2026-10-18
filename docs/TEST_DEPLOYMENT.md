@@ -31,8 +31,9 @@ Do not change application behavior just to make a test pass.
 3. Explain whether testing uses Simulation or the connected ShipStation account.
    No credentials means local Simulation. Configured V1 key/secret means ShipStation
    development labels, USPS selected by default, and every label request includes
-   `testLabel: true`. There is no separate V1 development API URL. The application
-   currently disables live purchasing even if the legacy enable flag is true.
+   `testLabel: true` when `WMS_ENABLE_LIVE_PURCHASE=false`. There is no separate V1
+   development API URL. Keep the flag false for this test guide; setting it true
+   selects paid purchases and requires confirmation in the browser.
 4. Any valid imported order number can create a development label; no special
    `USPS-PRIORITY-US-TEST-` prefix is required. US and Canada orders can be submitted
    with destination-appropriate USPS services. Carrier rejection is a test result;
@@ -152,7 +153,7 @@ fresh isolated database; do not clear an existing workspace to match them.
 | Repeat test label | Reopen the same order, create another completed development label; History retains both attempts. Do not expect repeated Simulation labels for the same package. |
 | Canada | Customs fields appear. Enter recipient-paid duties, contents, non-delivery choice, matching quantity, description, positive USD value, origin country, and 6–10 digit HS code. Choose an international USPS service. Record actual carrier acceptance/rejection. |
 | History | Table includes tracking/status/PDF links. Try `PM-*`, `*001`, `PM-BULK-00?`, and a date/time window covering the test. Clear filters restores rows. Reprinting creates no new attempt. |
-| PDF/print | Open Letter PDF; verify test/simulation marking, Letter paper, 100% print scale. PM checks physical output on the local printer. Test labels must not be used for shipping or entered into WMS as live tracking. |
+| PDF/print | Open Label PDF / thermal print; verify test/simulation marking, 4 × 6 inch paper, Actual size / 100%, and no print margins. The original PDF has no added Letter page. Letter PDF remains an office-printer alternative. PM checks physical output on the local printer. Test labels must not be used for shipping or entered into WMS as live tracking. |
 | Manager review | Filters work; exported XLSX Summary/Shipments agree with the matching dashboard records and label modes. |
 | Persistence | Restart the same project; orders, shipper contacts, history and PDFs remain. Refresh browser and reconnect the folder if prompted. |
 | Layout | At the PM's actual screen size, order list is easy to reach and the Create label action is visible near the top. Narrow windows stack sections without inaccessible controls. |

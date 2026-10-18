@@ -54,10 +54,16 @@ def build_payload(snapshot):
         "packageCode": shipping["package_code"],
         "shipDate": shipping["ship_date"],
         "confirmation": shipping["confirmation"],
-        "weight": {"value": package["weight_g"], "units": "grams"},
+        "weight": {
+            "value": package.get("weight_oz") or round(package["weight_g"] / 28.349523125, 6),
+            "units": "ounces",
+        },
         "dimensions": {
-            "units": "centimeters",
-            **{key: package[f"{key}_mm"] / 10 for key in ("length", "width", "height")},
+            "units": "inches",
+            **{
+                key: package.get(f"{key}_in") or round(package[f"{key}_mm"] / 25.4, 6)
+                for key in ("length", "width", "height")
+            },
         },
         "shipFrom": address(snapshot["origin"]),
         "shipTo": address(snapshot["recipient"], shipping["residential"]),

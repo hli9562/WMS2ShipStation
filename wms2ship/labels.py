@@ -80,7 +80,7 @@ def read_artifact(settings, row):
 
 @router.get("/api/labels/{label_id}/pdf")
 def label_pdf(
-    label_id: str, request: Request, kind: str = Query("letter", pattern="^(original|letter)$")
+    label_id: str, request: Request, kind: str = Query("original", pattern="^(original|letter)$")
 ):
     engine = request.app.state.engine
     settings = request.app.state.settings

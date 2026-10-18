@@ -25,12 +25,15 @@ class PurchaseResult:
 
 
 def demo_pdf():
-    # A minimal valid Letter PDF with an unmistakable simulation watermark.
-    stream = b"BT /F1 22 Tf 40 700 Td (SIMULATION - NOT VALID POSTAGE) Tj ET"
+    # Match 4 x 6 inch thermal stock, with an unmistakable simulation watermark.
+    stream = (
+        b"BT /F1 22 Tf 20 390 Td (SIMULATION) Tj "
+        b"/F1 16 Tf 0 -28 Td (NOT VALID POSTAGE) Tj ET"
+    )
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 288 432] "
         b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
         f"<< /Length {len(stream)} >>\nstream\n".encode() + stream + b"\nendstream",
