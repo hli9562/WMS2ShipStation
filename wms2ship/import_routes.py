@@ -120,7 +120,9 @@ def orders(request: Request):
             db.execute(
                 text(
                     "SELECT o.id,o.wms_order_no,o.platform_reference,o.created_at, "
-                    "(SELECT a.state FROM label_attempts a WHERE a.order_id=o.id "
+                    "(SELECT CASE WHEN EXISTS (SELECT 1 FROM labels l WHERE l.attempt_id=a.id "
+                    "AND l.void_status='voided') THEN 'removed' ELSE a.state END "
+                    "FROM label_attempts a WHERE a.order_id=o.id "
                     "ORDER BY a.created_at DESC,a.id DESC LIMIT 1) AS label_status "
                     "FROM orders o ORDER BY o.created_at DESC,o.id DESC LIMIT 1000"
                 )

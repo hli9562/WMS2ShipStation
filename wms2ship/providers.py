@@ -6,14 +6,6 @@ from uuid import uuid4
 from wms2ship.configuration import FAKE_CHOICES
 
 
-class VoidRejected(Exception):
-    """Provider conclusively declined the void."""
-
-
-class VoidUncertain(Exception):
-    """Void may have succeeded; manual verification required."""
-
-
 class PurchaseRejected(Exception):
     """Provider conclusively rejected the request without purchasing postage."""
 
@@ -59,9 +51,6 @@ def demo_pdf():
 class FakeProvider:
     code = "fake"
     mode = "simulation"
-
-    def void_label(self, shipment_id):
-        return None
 
     def catalog(self):
         return FAKE_CHOICES

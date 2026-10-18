@@ -184,7 +184,9 @@ def history(
         rows = (
             db.execute(
                 text(
-                    "SELECT a.id AS attempt_id,a.state,a.error_code,a.created_at,o.id AS order_id,"
+                    "SELECT a.id AS attempt_id,CASE WHEN l.void_status='voided' "
+                    "THEN 'removed' ELSE a.state END AS state,"
+                    "a.state AS purchase_state,a.error_code,a.created_at,o.id AS order_id,"
                     "o.wms_order_no,p.provider_code,l.id AS label_id,l.tracking_number,"
                     "l.provider_shipment_id,l.void_status,l.void_updated_at,"
                     "l.charge_minor,l.currency FROM label_attempts a "

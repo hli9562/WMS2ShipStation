@@ -567,12 +567,12 @@ const reviewFields = document.querySelector('#review-filter-fields');
 field(reviewFields, 'start', 'Activity from (UTC)', '', null, 'date');
 field(reviewFields, 'end', 'Activity through (UTC)', '', null, 'date');
 field(reviewFields, 'search', 'Order, tracking, recipient, or shipper');
-field(reviewFields, 'state', 'Label status', 'all', ['all', 'not_started', 'prepared', 'sending', 'purchased', 'failed', 'uncertain'].map(code => [code, code.replaceAll('_', ' ')]));
+field(reviewFields, 'state', 'Label status', 'all', ['all', 'not_started', 'prepared', 'sending', 'purchased', 'failed', 'uncertain', 'removed'].map(code => [code, code.replaceAll('_', ' ')]));
 field(reviewFields, 'mode', 'Postage mode', 'all', [['all', 'All'], ['live', 'Live'], ['simulation', 'Simulation'], ['test', 'USPS test labels'], ['unassigned', 'No attempt']]);
 let reviewQuery = new URLSearchParams();
 let reviewOffset = 0;
 let reviewBusy = false;
-const reviewColumns = [['wms_order_no', 'WMS order'], ['state', 'Label status'], ['mode', 'Mode'], ['void_status', 'Void status'], ['created_at', 'Activity (UTC)'], ['shipper', 'Shipper'], ['recipient', 'Recipient'], ['country', 'Destination'], ['carrier', 'Carrier'], ['service', 'Service'], ['tracking_number', 'Tracking'], ['charge_minor', 'Charge'], ['error_code', 'Exception']];
+const reviewColumns = [['wms_order_no', 'WMS order'], ['state', 'Label status'], ['mode', 'Mode'], ['void_status', 'Local label status'], ['created_at', 'Activity (UTC)'], ['shipper', 'Shipper'], ['recipient', 'Recipient'], ['country', 'Destination'], ['carrier', 'Carrier'], ['service', 'Service'], ['tracking_number', 'Tracking'], ['charge_minor', 'Charge'], ['error_code', 'Exception']];
 for (const [, title] of reviewColumns) {
   const th = message(document.querySelector('#review-table thead tr'), title, 'th');
   th.scope = 'col';
@@ -621,6 +621,7 @@ async function loadReview(reset = true) {
       for (const [key] of reviewColumns) {
         let value = row[key] ?? '—';
         if (key === 'charge_minor') value = row.charge_minor == null ? 'Not recorded' : `${(row.charge_minor / 100).toFixed(2)} ${row.currency}`;
+        if (key === 'void_status' && value === 'voided') value = 'Removed locally';
         if (key === 'state') value = value.replaceAll('_', ' ');
         message(tr, value || '—', 'td');
       }
@@ -663,32 +664,23 @@ function updateOriginSummary(collapse = false) {
 document.querySelector('#origin-fields').addEventListener('input', () => updateOriginSummary());
 
 function renderVoidAction(container, row) {
-  message(container, `Void: ${row.void_status || 'active'}`, 'span');
-  if (row.void_status === 'voided' || row.void_status === 'pending') return;
-  const uncertain = row.void_status === 'uncertain';
-  const button = message(container, uncertain ? 'Resolve void status' : 'Void label', 'button');
+  message(container, row.void_status === 'voided' ? 'Removed locally' : '', 'span');
+  if (row.void_status === 'voided') return;
+  const button = message(container, 'Remove label', 'button');
   button.type = 'button';
   button.onclick = async () => {
-    let payload = { confirm_void: true };
-    let suffix = 'void';
-    if (uncertain) {
-      const outcome = window.prompt('First verify this label in ShipStation. Enter "voided" or "not_voided" to record the verified outcome.');
-      if (!['voided', 'not_voided'].includes(outcome)) return;
-      const evidence = window.prompt('Describe how you verified the outcome (at least 20 characters).');
-      if (!evidence || evidence.trim().length < 20) return;
-      payload = { outcome, evidence: evidence.trim() };
-      suffix = 'void/resolve';
-    } else if (!window.confirm(`Void unused label ${row.tracking_number || row.label_id} for order ${row.wms_order_no}? This cannot be undone. Refund eligibility and timing depend on the carrier.${row.mode === 'simulation' ? ' This is a simulation.' : row.mode === 'test' ? ' This is a test label.' : ''}`)) return;
+    if (!window.confirm(`Remove label ${row.tracking_number || row.label_id} for order ${row.wms_order_no} from this app? ShipStation postage stays unchanged; this does not cancel postage or request a refund.`)) return;
     button.disabled = true;
     try {
-      const result = await api(`/api/labels/${row.label_id}/${suffix}`, {
+      const result = await api(`/api/labels/${row.label_id}/void`, {
         method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ confirm_void: true })
       });
-      window.alert(result.void_status === 'voided' ? 'Label voided. Do not use any previously downloaded or printed copies. Refund processing depends on the carrier.' : result.void_status === 'rejected' ? 'ShipStation declined the void. Check the label in ShipStation before trying again.' : result.void_status === 'active' ? 'Verified that the label was not voided.' : 'Void outcome is uncertain. Verify in ShipStation, then use Resolve void status.');
+      window.alert('Label removed locally. ShipStation was not changed.');
       if (result.void_status === 'voided' && currentOrder?.id === row.order_id) {
         for (const key of purchaseTokens.keys()) if (key.startsWith(`${row.order_id}:`)) purchaseTokens.delete(key);
       }
+      await loadOrders();
       await loadHistory(true);
       await loadReview(true);
     } catch (error) { window.alert(error.message); }

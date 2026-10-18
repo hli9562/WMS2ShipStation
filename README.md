@@ -226,21 +226,13 @@ Monday–Friday. Weekend dates advance to Monday. Holidays are not excluded. The
 date remains editable, and previously saved dates are preserved.
 
 
-## Manually void an unused label
+## Manually remove a local label
 
-In **History** or **Shipment review**, find the label and click **Void label**.
-Confirm the order and tracking number before proceeding. Voiding is always an
-operator action; there is no scheduled voiding or automatic retry. Simulation
-voids stay local; ShipStation test and live labels use their original provider.
+In **History** or **Shipment review**, click **Remove label** and confirm.
+This only retires the label in WMS2ShipStation. It never contacts ShipStation,
+cancels postage, or requests a refund. Cancel unused paid postage separately in
+ShipStation if needed.
 
-The app records the void result alongside the original purchase. A confirmed
-void blocks PDF access and releases that label's purchase guard, so a replacement
-can be created manually. Previously downloaded PDFs and printed copies must be
-discarded. Recorded charges remain purchase history, not proof of a refund;
-carrier refund eligibility and processing times still apply.
-
-If a request times out or the app stops during a void, the label is marked
-**uncertain** and printing and replacement purchases are blocked. Verify the
-shipment in ShipStation, then use **Resolve void status** to record `voided` or
-`not_voided`, with evidence of the verification. Rejected voids retain the label
-and purchase guard. A provider shipment ID is required to submit a void.
+Removed labels retain their local purchase history and original charge. Their
+PDF links are disabled and their purchase guard is released, so a replacement
+can be created manually. Existing downloaded or printed copies remain unchanged.

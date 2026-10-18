@@ -13,8 +13,6 @@ from wms2ship.providers import (
     PurchaseRejected,
     PurchaseResult,
     PurchaseUncertain,
-    VoidRejected,
-    VoidUncertain,
 )
 
 
@@ -218,30 +216,6 @@ class ShipStationProvider:
         if not self.enable_live:
             raise PurchaseRejected("Live purchasing is disabled.")
         return self._submit_payload(build_payload(snapshot))
-
-    def void_label(self, shipment_id):
-        try:
-            shipment = int(shipment_id)
-            if shipment <= 0:
-                raise ValueError()
-        except (ValueError, TypeError):
-            raise VoidRejected() from None
-        try:
-            response = self.client.post("/shipments/voidlabel", json={"shipmentId": shipment})
-        except httpx.HTTPError:
-            raise VoidUncertain() from None
-        if response.status_code in {400, 401, 403, 404, 405, 422}:
-            raise VoidRejected()
-        if not response.is_success:
-            raise VoidUncertain()
-        try:
-            approved = response.json()["approved"]
-        except (ValueError, KeyError, TypeError):
-            raise VoidUncertain() from None
-        if approved is False:
-            raise VoidRejected()
-        if approved is not True:
-            raise VoidUncertain()
 
     def _submit_payload(self, body):
         try:

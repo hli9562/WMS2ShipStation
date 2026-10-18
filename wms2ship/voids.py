@@ -1,4 +1,4 @@
-"""Operator-triggered voids. Never retry an ambiguous carrier operation automatically."""
+"""Manual local label removal; never sends a request to the carrier."""
 
 from typing import Literal
 
@@ -7,7 +7,6 @@ from pydantic import Field
 from sqlalchemy import text
 
 from wms2ship.configuration import DraftModel
-from wms2ship.providers import VoidRejected, VoidUncertain
 from wms2ship.purchases import event, now
 
 router = APIRouter()
@@ -56,36 +55,16 @@ def finish(db, row, status, kind, evidence=None):
 @router.post("/api/labels/{label_id}/void")
 def void_label(label_id: str, payload: VoidRequest, request: Request):
     if not payload.confirm_void:
-        raise HTTPException(400, "Explicit confirmation is required to void a label.")
+        raise HTTPException(400, "Explicit confirmation is required to remove a label.")
     engine = request.app.state.engine
     with engine.connect() as db:
         db.exec_driver_sql("BEGIN IMMEDIATE")
         row = label_record(db, label_id)
         if row["void_status"] == "voided":
             return {"label_id": label_id, "void_status": "voided"}
-        if row["void_status"] in ("pending", "uncertain"):
-            raise HTTPException(409, "Void outcome requires manual verification in ShipStation.")
-        provider = request.app.state.providers.get(row["provider_code"])
-        if provider is None or not hasattr(provider, "void_label"):
-            raise HTTPException(409, "Original label provider is unavailable for voiding.")
-        if not row["provider_shipment_id"]:
-            raise HTTPException(409, "Recover the provider shipment ID before voiding this label.")
-        finish(db, row, "pending", "void_requested")
+        finish(db, row, "voided", "label_removed_locally")
         db.commit()
-    status = "uncertain"
-    try:
-        provider.void_label(row["provider_shipment_id"])
-        status = "voided"
-    except VoidRejected:
-        status = "rejected"
-    except VoidUncertain:
-        pass
-    except Exception:
-        # An unexpected adapter error must not leave a label printable or retry automatically.
-        pass
-    with engine.begin() as db:
-        finish(db, row, status, f"void_{status}")
-    return {"label_id": label_id, "void_status": status}
+    return {"label_id": label_id, "void_status": "voided"}
 
 
 @router.post("/api/labels/{label_id}/void/resolve")

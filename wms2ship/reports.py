@@ -23,7 +23,7 @@ def filters(
     start: date | None = None,
     end: date | None = None,
     state: Literal[
-        "all", "not_started", "prepared", "sending", "purchased", "failed", "uncertain"
+        "all", "not_started", "prepared", "sending", "purchased", "failed", "uncertain", "removed"
     ] = "all",
     mode: Literal["all", "live", "simulation", "test", "unassigned"] = "all",
     search: str = Query("", max_length=100),
@@ -40,7 +40,9 @@ def review_data(request, selected):
                 text("""
             SELECT o.id AS order_id, o.wms_order_no, o.platform_reference,
               COALESCE(a.created_at,o.created_at) AS created_at,
-              COALESCE(a.state,'not_started') AS state, a.id AS attempt_id,
+              CASE WHEN l.void_status='voided' THEN 'removed'
+                ELSE COALESCE(a.state,'not_started') END AS state,
+              a.state AS purchase_state, a.id AS attempt_id,
               a.error_code, a.request_snapshot_json, o.recipient_json, o.origin_json,
               o.shipping_json, p.provider_code, l.id AS label_id, l.tracking_number,
               l.charge_minor, l.currency, l.void_status, l.void_updated_at
@@ -100,19 +102,21 @@ def review_data(request, selected):
     counts = Counter(r["state"] for r in rows)
     charges = defaultdict(int)
     for r in rows:
-        if r["state"] == "purchased" and r["charge_minor"] is not None:
+        if r["purchase_state"] == "purchased" and r["charge_minor"] is not None:
             charges[(r["mode"], r["currency"])] += r["charge_minor"]
     summary = dict(
         records=len(rows),
         orders=len({r["order_id"] for r in rows}),
-        purchased=counts["purchased"],
+        purchased=sum(r["purchase_state"] == "purchased" for r in rows),
         not_started=counts["not_started"],
         exceptions=sum(
             r["state"] in ("failed", "uncertain") or bool(r["error_code"]) for r in rows
         ),
         states=dict(counts),
         charges=[dict(mode=m, currency=c, minor=n) for (m, c), n in sorted(charges.items())],
-        unknown_charges=sum(r["state"] == "purchased" and r["charge_minor"] is None for r in rows),
+        unknown_charges=sum(
+            r["purchase_state"] == "purchased" and r["charge_minor"] is None for r in rows
+        ),
     )
     return rows, summary
 
