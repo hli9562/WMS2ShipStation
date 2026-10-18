@@ -266,13 +266,6 @@ class ShipStationTestProvider(ShipStationProvider):
 
     code = "shipstation_test"
     mode = "test"
-    allowed_carrier_codes = {"stamps_com"}
-
-    def catalog(self):
-        catalog = super().catalog()
-        catalog["carriers"] = [c for c in catalog["carriers"] if c["code"] == "stamps_com"]
-        return catalog
-
     def create_label(self, snapshot, attempt_id):
         shipping = snapshot["shipping"]
         if (

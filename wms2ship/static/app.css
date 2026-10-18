@@ -187,3 +187,5 @@ caption { padding: 6px 0; }
 .import-tools #folder-table th:nth-child(3) { width: 24%; }
 .import-tools #folder-table th:nth-child(4) { width: 10%; }
 .import-tools #folder-table th:nth-child(5) { width: 29%; }
+
+#shipping-fields > [data-field="shipping.carrier_code"] { grid-column: 1 / -1; }

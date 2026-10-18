@@ -226,7 +226,11 @@ async function showConfiguration(order) {
   updateOriginSummary(true);
   const s = { ...(order.shipping || {}) };
   if (availableProviders.some(p => p.code === 'shipstation_test')) s.provider = 'shipstation_test';
-  const providerSelect = field(shipping, 'shipping.provider', 'Shipping provider', s.provider || 'fake', availableProviders.filter(p => availableProviders.some(item => item.code === 'shipstation_test') ? p.code === 'shipstation_test' : p.code === 'fake').map(p => [p.code, p.mode === 'test' ? 'ShipStation development — test labels' : 'Simulation — no postage']));
+  const providerSelect = document.createElement('input');
+  providerSelect.type = 'hidden';
+  providerSelect.name = 'shipping.provider';
+  providerSelect.value = s.provider || 'fake';
+  shipping.append(providerSelect);
   const carrierSelect = field(shipping, 'shipping.carrier_code', 'Carrier', s.carrier_code, []);
   const serviceSelect = field(shipping, 'shipping.service_code', 'Service', s.service_code, []);
   const packageSelect = field(shipping, 'shipping.package_code', 'Package type', s.package_code, []);
@@ -266,7 +270,6 @@ async function showConfiguration(order) {
       scheduleReadiness();
     } catch (error) { document.querySelector('#validation-result').textContent = error.message; }
   }
-  providerSelect.onchange = () => refreshCatalog(false);
   refreshCatalog(true);
   field(shipping, 'shipping.ship_date', 'Ship date', s.ship_date || order.default_ship_date, null, 'date');
   field(shipping, 'shipping.residential', 'Recipient address type', s.residential, [['true', 'Residential'], ['false', 'Commercial']]);

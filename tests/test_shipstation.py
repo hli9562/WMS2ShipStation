@@ -406,7 +406,7 @@ def test_usps_test_label_cannot_send_paid_request_and_is_reported_separately(tmp
         assert len(calls) == 2
 
 
-def test_usps_lookup_skips_other_carriers_and_reuses_shared_cache(monkeypatch):
+def test_development_catalog_shows_all_carriers_and_reuses_shared_cache(monkeypatch):
     from wms2ship.shipstation import LookupCache, ShipStationTestProvider
 
     calls = []
@@ -415,7 +415,6 @@ def test_usps_lookup_skips_other_carriers_and_reuses_shared_cache(monkeypatch):
 
     def handler(request):
         calls.append((request.url.path, request.url.params.get("carrierCode")))
-        assert request.url.params.get("carrierCode") != "ups"
         return httpx.Response(
             200,
             json={
@@ -436,15 +435,16 @@ def test_usps_lookup_skips_other_carriers_and_reuses_shared_cache(monkeypatch):
     paid = ShipStationProvider("k", "s", transport=httpx.MockTransport(handler), lookup_cache=cache)
     try:
         first = test.catalog()
-        assert len(calls) == 4
+        assert {c["code"] for c in first["carriers"]} == {"stamps_com", "ups"}
+        assert len(calls) == 6
         first["carriers"][0]["services"].clear()
         assert len(test.catalog()["carriers"][0]["services"]) == 1
-        assert len(calls) == 4
+        assert len(calls) == 6
         assert len(paid.get("/carriers")) == 2
-        assert len(calls) == 4
+        assert len(calls) == 6
         clock[0] += 301
         test.catalog()
-        assert len(calls) == 8
+        assert len(calls) == 12
     finally:
         test.close()
         paid.close()
