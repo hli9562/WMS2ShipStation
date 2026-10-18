@@ -471,6 +471,15 @@ function renderShipperChoices() {
     button.onclick = () => openTab('settings');
     return;
   }
+  const originInputs = [...document.querySelectorAll('#origin-fields input')];
+  if (originInputs.every(input => !input.value.trim())) {
+    const defaultContact = shipperContacts.find(contact => contact.is_default) || (shipperContacts.length === 1 ? shipperContacts[0] : null);
+    if (defaultContact) {
+      for (const input of originInputs) input.value = defaultContact.address[input.name.split('.')[1]] || '';
+      updateOriginSummary(true);
+      scheduleReadiness();
+    }
+  }
   const matches = shipperContacts.find(contact => Object.keys(addressLabels).every(key =>
     (document.querySelector('#configuration-form').elements.namedItem(`origin.${key}`)?.value || '') === (contact.address[key] || '')));
   const choice = field(container, 'saved_shipper', 'Saved shipper contact', matches?.id || '', shipperContacts.map(c => [c.id, c.label]));
@@ -498,7 +507,19 @@ async function loadContacts() {
   if (!shipperContacts.length) message(list, 'No saved shipper contacts. Add your first contact below.');
   for (const contact of shipperContacts) {
     const article = document.createElement('article');
-    message(article, contact.label, 'h3');
+    message(article, `${contact.label}${contact.is_default ? ' · Default shipper' : ''}`, 'h3');
+    if (!contact.is_default) {
+      const makeDefault = message(article, 'Use as default shipper', 'button');
+      makeDefault.type = 'button';
+      makeDefault.onclick = async () => {
+        makeDefault.disabled = true;
+        try {
+          await api(`/api/shipper-contacts/${contact.id}/default`, { method: 'PUT', headers: { 'X-CSRF-Token': csrf } });
+          await loadContacts();
+          document.querySelector('#contact-status').textContent = 'Default shipper updated. Orders with saved shipper details keep their address.';
+        } catch (error) { document.querySelector('#contact-status').textContent = error.message; makeDefault.disabled = false; }
+      };
+    }
     message(article, [contact.address.name, contact.address.company, contact.address.phone, contact.address.address1, contact.address.address2, contact.address.city, contact.address.state, contact.address.postal, contact.address.country].filter(Boolean).join(' · '));
     const edit = message(article, 'Edit', 'button');
     edit.type = 'button';
@@ -530,7 +551,7 @@ document.querySelector('#contact-form').addEventListener('submit', async event =
     await api(`/api/shipper-contacts${contactId ? `/${contactId}` : ''}`, { method: contactId ? 'PUT' : 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     editContact();
     await loadContacts();
-    document.querySelector('#contact-status').textContent = 'Contact saved. Select it in Shipping details to use it on an order.';
+    document.querySelector('#contact-status').textContent = 'Contact saved. The default shipper is applied automatically to orders without shipper details.';
   } catch (error) { document.querySelector('#contact-status').textContent = error.message; }
   finally { button.disabled = false; }
 });

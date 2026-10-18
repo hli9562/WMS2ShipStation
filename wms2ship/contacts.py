@@ -20,9 +20,17 @@ class Contact(DraftModel):
 @router.get("")
 def list_contacts(request: Request):
     with request.app.state.engine.connect() as db:
-        rows = db.execute(text("SELECT * FROM shipper_contacts ORDER BY label, id")).mappings()
+        rows = (
+            db.execute(text("SELECT * FROM shipper_contacts ORDER BY label, id")).mappings().all()
+        )
         return [
-            dict(id=r["id"], label=r["label"], address=json.loads(r["address_json"])) for r in rows
+            dict(
+                id=r["id"],
+                label=r["label"],
+                address=json.loads(r["address_json"]),
+                is_default=bool(r["is_default"]) or len(rows) == 1,
+            )
+            for r in rows
         ]
 
 
@@ -32,7 +40,9 @@ def create_contact(payload: Contact, request: Request):
     with request.app.state.engine.begin() as db:
         db.execute(
             text(
-                "INSERT INTO shipper_contacts (id,label,address_json) VALUES (:id,:label,:address)"
+                "INSERT INTO shipper_contacts (id,label,address_json,is_default) "
+                "VALUES (:id,:label,:address, "
+                "CASE WHEN NOT EXISTS (SELECT 1 FROM shipper_contacts) THEN 1 ELSE 0 END)"
             ),
             {
                 "id": contact_id,
@@ -40,7 +50,7 @@ def create_contact(payload: Contact, request: Request):
                 "address": payload.address.model_dump_json(),
             },
         )
-    return {"id": contact_id, **payload.model_dump()}
+    return next(contact for contact in list_contacts(request) if contact["id"] == contact_id)
 
 
 @router.put("/{contact_id}")
@@ -56,7 +66,7 @@ def update_contact(contact_id: str, payload: Contact, request: Request):
         )
         if result.rowcount != 1:
             raise HTTPException(404, "Contact not found.")
-    return {"id": contact_id, **payload.model_dump()}
+    return next(contact for contact in list_contacts(request) if contact["id"] == contact_id)
 
 
 @router.delete("/{contact_id}")
@@ -66,3 +76,17 @@ def delete_contact(contact_id: str, request: Request):
         if result.rowcount != 1:
             raise HTTPException(404, "Contact not found.")
     return {"deleted": True}
+
+
+@router.put("/{contact_id}/default")
+def set_default_contact(contact_id: str, request: Request):
+    with request.app.state.engine.begin() as db:
+        if not db.execute(
+            text("SELECT 1 FROM shipper_contacts WHERE id=:id"), {"id": contact_id}
+        ).scalar():
+            raise HTTPException(404, "Contact not found.")
+        db.execute(text("UPDATE shipper_contacts SET is_default=0 WHERE is_default=1"))
+        db.execute(
+            text("UPDATE shipper_contacts SET is_default=1 WHERE id=:id"), {"id": contact_id}
+        )
+    return next(contact for contact in list_contacts(request) if contact["id"] == contact_id)

@@ -80,3 +80,35 @@ def test_contact_accepts_country_names_and_normalizes_state(tmp_path):
         invalid = client.post("/api/shipper-contacts", json=payload, headers=headers)
         assert invalid.status_code == 422
         assert invalid.json()["detail"][0]["loc"] == ["body", "address", "country"]
+
+
+def test_default_shipper_selection_persistence_and_single_contact_fallback(tmp_path):
+    settings = Settings(data_dir=tmp_path)
+    with TestClient(create_app(settings)) as client:
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        payload = {"label": "First", "address": {"name": "First shipper"}}
+        first = client.post("/api/shipper-contacts", json=payload, headers=headers).json()
+        assert first["is_default"] is True
+        second = client.post(
+            "/api/shipper-contacts", json={**payload, "label": "Second"}, headers=headers
+        ).json()
+        assert second["is_default"] is False
+        url = f"/api/shipper-contacts/{second['id']}/default"
+        assert client.put(url).status_code == 403
+        assert client.put(url, headers=headers).json()["is_default"] is True
+        contacts = client.get("/api/shipper-contacts").json()
+        assert [c["id"] for c in contacts if c["is_default"]] == [second["id"]]
+        assert (
+            client.put("/api/shipper-contacts/missing/default", headers=headers).status_code == 404
+        )
+        assert client.get("/api/shipper-contacts").json() == contacts
+    with TestClient(create_app(settings)) as client:
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        assert [c["id"] for c in client.get("/api/shipper-contacts").json() if c["is_default"]] == [
+            second["id"]
+        ]
+        client.delete(f"/api/shipper-contacts/{second['id']}", headers=headers)
+        remaining = client.get("/api/shipper-contacts").json()
+        assert len(remaining) == 1
+        assert remaining[0]["id"] == first["id"]
+        assert remaining[0]["is_default"] is True

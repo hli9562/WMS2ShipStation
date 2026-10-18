@@ -215,3 +215,7 @@ for every imported order number. The UI defaults to test mode, server saves forc
 that mode, and live purchases are disabled. Requests use V1 `testLabel: true`
 (USPS only), including destination-appropriate international services. Test labels
 can be generated repeatedly; invalid source data still needs correction.
+
+In Settings, mark a saved contact as the default shipper. A single saved contact
+is used automatically. The default fills orders with no shipper details; existing
+order addresses and manual edits stay intact.
