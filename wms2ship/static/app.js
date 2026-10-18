@@ -368,7 +368,13 @@ document.querySelector('#create-label').addEventListener('click', async event =>
       purchaseTokens.delete(key);
       button.textContent = 'Create another USPS test label';
     }
+    if (attempt.state === 'purchased') document.querySelector('#history-filters').reset();
     await loadHistory(true);
+    if (attempt.state === 'purchased') {
+      openTab('history');
+      document.querySelector('#tab-history').focus();
+      document.querySelector('#panel-history').scrollIntoView({ behavior: 'smooth' });
+    }
     target.textContent = ` ${attempt.mode === 'simulation' ? 'SIMULATION — NOT VALID POSTAGE.' : attempt.mode === 'test' ? 'USPS TEST LABEL — NOT VALID POSTAGE.' : 'ShipStation purchase.'} Attempt ${attempt.id}: ${attempt.state}. ${attempt.labels.map(l => l.tracking_number).join(', ')}`;
   } catch (error) { target.textContent = error.message; }
   finally {
