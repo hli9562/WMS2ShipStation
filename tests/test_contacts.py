@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from tests.test_configuration import draft
 from tests.test_imports import upload, workbook
@@ -13,6 +14,8 @@ def test_contacts_persist_and_orders_keep_address_snapshot(tmp_path):
         upload(client, workbook())
         order_id = client.get("/api/orders").json()[0]["id"]
         config = draft(client.get(f"/api/orders/{order_id}").json())
+        with client.app.state.engine.begin() as db:
+            db.execute(text("DELETE FROM shipper_contacts"))
         payload = {"label": "Warehouse contact", "address": config["origin"]}
         assert client.post("/api/shipper-contacts", json=payload).status_code == 403
         assert (
@@ -86,6 +89,8 @@ def test_default_shipper_selection_persistence_and_single_contact_fallback(tmp_p
     settings = Settings(data_dir=tmp_path)
     with TestClient(create_app(settings)) as client:
         headers = {"x-csrf-token": client.app.state.csrf_token}
+        with client.app.state.engine.begin() as db:
+            db.execute(text("DELETE FROM shipper_contacts"))
         payload = {"label": "First", "address": {"name": "First shipper"}}
         first = client.post("/api/shipper-contacts", json=payload, headers=headers).json()
         assert first["is_default"] is True
@@ -112,3 +117,40 @@ def test_default_shipper_selection_persistence_and_single_contact_fallback(tmp_p
         assert len(remaining) == 1
         assert remaining[0]["id"] == first["id"]
         assert remaining[0]["is_default"] is True
+
+
+def test_new_workspace_seeds_apex_once_and_preserves_contact_edits(tmp_path):
+    settings = Settings(data_dir=tmp_path)
+    with TestClient(create_app(settings)) as client:
+        contacts = client.get("/api/shipper-contacts").json()
+        assert len(contacts) == 1
+        apex = contacts[0]
+        assert apex["is_default"] is True
+        assert apex["label"] == "Apex Tech"
+        assert apex["address"] == {
+            "name": "Apex Tech",
+            "company": "Apex Technology Distribution Inc",
+            "phone": "",
+            "address1": "20436 Westfield Commerce Dr",
+            "address2": "",
+            "city": "Katy",
+            "state": "TX",
+            "postal": "77494",
+            "country": "US",
+        }
+        payload = {"label": "Edited Apex", "address": apex["address"]}
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        assert (
+            client.put(
+                f"/api/shipper-contacts/{apex['id']}", json=payload, headers=headers
+            ).status_code
+            == 200
+        )
+    with TestClient(create_app(settings)) as client:
+        contacts = client.get("/api/shipper-contacts").json()
+        assert len(contacts) == 1
+        assert contacts[0]["label"] == "Edited Apex"
+        headers = {"x-csrf-token": client.app.state.csrf_token}
+        client.delete(f"/api/shipper-contacts/{apex['id']}", headers=headers)
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/api/shipper-contacts").json() == []

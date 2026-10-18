@@ -248,3 +248,8 @@ ShipStation if needed.
 Removed labels retain their local purchase history and original charge. Their
 PDF links are disabled and their purchase guard is released, so a replacement
 can be created manually. Existing downloaded or printed copies remain unchanged.
+
+New workspaces include Apex Tech / Apex Technology Distribution Inc,
+20436 Westfield Commerce Dr, Katy, TX 77494, US as the default shipper contact.
+No phone number is prefilled. Existing contacts/defaults are preserved on upgrade;
+the seeded contact remains editable in Settings and is not recreated after deletion.
