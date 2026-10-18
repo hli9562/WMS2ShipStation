@@ -4,6 +4,10 @@ Local web workspace for manually exported XLWMS orders. Development is tracked i
 
 Current checkpoint: Docker application, migrations, XLSX import and order preview, duplicate detection, per-order configuration and readiness validation. Simulated labels and the ShipStation V1 adapter are available. Live purchasing is disabled by default.
 
+## PM test deployment with a coding agent
+
+Use [Test deployment and acceptance testing](docs/TEST_DEPLOYMENT.md) for a copy-and-paste Codex prompt, an isolated local workspace, and the five-XLSX acceptance checklist.
+
 ## Run with Docker
 
 Install and start Docker Desktop (or another Docker engine with Compose v2), then:
