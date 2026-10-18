@@ -219,3 +219,8 @@ can be generated repeatedly; invalid source data still needs correction.
 In Settings, mark a saved contact as the default shipper. A single saved contact
 is used automatically. The default fills orders with no shipper details; existing
 order addresses and manual edits stay intact.
+
+For orders without a saved ship date, Shipping details defaults to today in Katy
+(`America/Chicago`) before 5 p.m.; at 5 p.m. or later it advances to the next
+Monday–Friday. Weekend dates advance to Monday. Holidays are not excluded. The
+date remains editable, and previously saved dates are preserved.

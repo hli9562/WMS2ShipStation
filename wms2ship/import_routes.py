@@ -8,6 +8,7 @@ from sqlalchemy import bindparam, text
 from starlette.concurrency import run_in_threadpool
 
 from wms2ship.importer import ImportRejected, import_workbook
+from wms2ship.ship_dates import default_ship_date
 
 router = APIRouter()
 
@@ -152,4 +153,5 @@ def order_detail(order_id: str, request: Request):
                 .mappings()
                 .all()
             ]
+        result["default_ship_date"] = default_ship_date()
         return result
