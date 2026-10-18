@@ -272,7 +272,7 @@ async function showConfiguration(order) {
   }
   refreshCatalog(true);
   field(shipping, 'shipping.ship_date', 'Ship date', s.ship_date || order.default_ship_date, null, 'date');
-  field(shipping, 'shipping.residential', 'Recipient address type', s.residential, [['true', 'Residential'], ['false', 'Commercial']]);
+  field(shipping, 'shipping.residential', 'Recipient address type', s.residential ?? true, [['true', 'Residential'], ['false', 'Commercial']]);
   const extras = document.createElement('details');
   extras.className = 'shipping-extras';
   const extrasSummary = message(extras, '', 'summary');
@@ -280,9 +280,9 @@ async function showConfiguration(order) {
   extraFields.className = 'fields';
   extras.append(extraFields);
   shipping.append(extras);
-  field(extraFields, 'shipping.insurance', 'Insurance', s.insurance, [['none', 'None'], ['carrier', 'Carrier'], ['shipsurance', 'Shipsurance'], ['xcover', 'XCover'], ['parcelguard', 'ParcelGuard'], ['provider', 'Other insurance (billed outside ShipStation)']]);
+  field(extraFields, 'shipping.insurance', 'Insurance', s.insurance, [['none', 'None'], ['carrier', 'Carrier']]);
   field(extraFields, 'shipping.insured_value', 'Insured value (USD, if insured)', s.insured_value);
-  const addOns = [['saturday_delivery', 'Saturday delivery'], ['non_machinable', 'Non-machinable handling'], ['contains_alcohol', 'Contains alcohol']];
+  const addOns = [['saturday_delivery', 'Saturday delivery'], ['non_machinable', 'Non-machinable handling']];
   for (const [key, label] of addOns) {
     field(extraFields, `shipping.${key}`, label, String(s[key] ?? false), [['false', 'No'], ['true', 'Yes']]);
   }
@@ -295,7 +295,7 @@ async function showConfiguration(order) {
   extraFields.addEventListener('change', summarizeExtras);
   extras.open = !s.insurance || s.insurance !== 'none' || addOns.some(([key]) => s[key]);
   summarizeExtras();
-  message(extraFields, 'Availability and extra charges depend on the carrier and account. Other insurance is billed outside ShipStation.');
+  message(extraFields, 'Availability and extra charges depend on the carrier and account.');
   const catalogNote = message(shipping, availableProviders.some(p => p.code === 'shipstation') ? 'Carrier choices come from your connected account.' : 'Simulation only. Connect ShipStation credentials for real carrier choices.');
   catalogNote.className = 'field-note';
   const canadian = order.recipient.country === 'CA';
@@ -327,7 +327,8 @@ function configurationPayload() {
   for (const input of document.querySelectorAll('#shipping-fields input')) {
     shipping[input.name.split('.')[1]] = formValue(input.name);
   }
-  for (const key of ['saturday_delivery', 'non_machinable', 'contains_alcohol']) shipping[key] = shipping[key] === 'true';
+  for (const key of ['saturday_delivery', 'non_machinable']) shipping[key] = shipping[key] === 'true';
+  shipping.contains_alcohol = false;
   shipping.ship_date = shipping.ship_date || null;
   shipping.residential = shipping.residential === '' ? null : shipping.residential === 'true';
   shipping.duties_payer = formValue('shipping.duties_payer');
