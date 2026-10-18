@@ -130,3 +130,60 @@ td { min-width: 100px; overflow-wrap: anywhere; }
 #orders .new-order { background: #faf6eb; }
 #orders a { font-weight: 600; }
 #order-list-status { color: var(--muted); font-size: .85rem; }
+
+/* Compact workspaces keep the active task and label action near the top. */
+main { max-width: 1600px; margin: 8px auto; padding: 0 16px; }
+section { padding: 12px; margin-top: 12px; }
+h2, h3 { margin-bottom: 8px; }
+.tabs { margin-top: 6px; }
+.tabs button { padding: 8px 14px; }
+[role="tabpanel"] { margin-top: 8px; }
+#panel-import { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(340px, 1fr); gap: 16px; align-items: start; }
+.order-workspace { grid-column: 1; grid-row: 1; min-width: 0; }
+.import-tools { grid-column: 2; grid-row: 1; min-width: 0; border-left: 1px solid var(--border); padding-left: 16px; }
+.order-workspace > p { margin: 6px 0; font-size: .8rem; }
+.order-workspace > label { font-size: .8rem; }
+.order-workspace .table-scroll { max-height: calc(100vh - 340px); min-height: 180px; overflow: auto; }
+.order-workspace th { position: sticky; top: 0; z-index: 1; }
+#import-form { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+#import-form input { max-width: 100%; font-size: .8rem; }
+.folder-inbox { margin: 10px 0 0; padding: 10px; }
+.folder-inbox .order-heading { flex-wrap: wrap; gap: 4px; }
+.folder-inbox .table-scroll { max-height: 230px; }
+.folder-inbox .field-note { font-size: .75rem; }
+th, td { padding: 7px 9px; }
+caption { padding: 6px 0; }
+#configuration-mode { padding: 6px 10px; margin: 8px 0; font-size: .75rem; }
+#configuration-actions { position: sticky; top: 0; bottom: auto; margin: 8px 0; padding: 8px; border: 1px solid var(--border); border-radius: 6px; align-items: center; justify-content: space-between; box-shadow: 0 3px 8px #082e580d; }
+#configuration-actions #validation-result { flex: 1; min-width: 180px; max-height: 100px; overflow: auto; margin: 0; font-size: .78rem; }
+#validation-result p { margin: 3px 0; }
+#configuration-actions button { flex-shrink: 0; }
+#configuration-form { grid-template-columns: 240px minmax(0, 1fr); gap: 10px; }
+.shipper-card, .shipping-card, .customs-card { padding: 10px; }
+#shipping-fields { gap: 8px; }
+#shipping-fields > [data-field="shipping.provider"], #shipping-fields > [data-field="shipping.carrier_code"] { grid-column: auto; }
+.radio-field { padding: 5px; }
+.fields .radio-options label { padding: 5px 7px; font-size: .78rem; }
+#shipping-fields > [data-field="shipping.service_code"] .radio-options, #shipping-fields > [data-field="shipping.package_code"] .radio-options { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 4px; }
+.shipping-extras { padding: 7px; }
+#panel-history > p { margin: 6px 0; font-size: .8rem; }
+@media (max-width: 1050px) {
+  #panel-import { grid-template-columns: 1fr; }
+  .import-tools { grid-column: 1; grid-row: 2; border-left: 0; border-top: 1px solid var(--border); padding: 12px 0 0; }
+  #configuration-form { grid-template-columns: 210px minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  main { padding: 0 8px; }
+  #configuration-form { grid-template-columns: 1fr; }
+  #shipping-fields { grid-template-columns: 1fr; }
+  #configuration-actions { gap: 6px; }
+  .order-workspace .table-scroll { max-height: 50vh; }
+}
+
+.import-tools #folder-table { table-layout: fixed; font-size: .75rem; }
+.import-tools #folder-table th, .import-tools #folder-table td { min-width: 0; padding: 6px 4px; white-space: normal; overflow-wrap: anywhere; }
+.import-tools #folder-table th:nth-child(1) { width: 8%; }
+.import-tools #folder-table th:nth-child(2) { width: 29%; }
+.import-tools #folder-table th:nth-child(3) { width: 24%; }
+.import-tools #folder-table th:nth-child(4) { width: 10%; }
+.import-tools #folder-table th:nth-child(5) { width: 29%; }

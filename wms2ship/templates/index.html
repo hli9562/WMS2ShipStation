@@ -29,6 +29,15 @@
       <button type="button" id="tab-settings" role="tab" aria-controls="panel-settings" aria-selected="false" tabindex="-1">Settings</button>
     </div>
     <section id="panel-import" role="tabpanel" aria-labelledby="tab-import" tabindex="0">
+      <div class="order-workspace">
+      <h2>Imported WMS orders</h2>
+      <p>Select an order to review and edit its shipping details. Existing orders are retained when you import them again.</p>
+      <label for="order-search">Find order<input id="order-search" type="search" placeholder="Order number or platform reference"></label>
+      <label><input id="new-orders-only" type="checkbox"> Only orders with no label attempts</label>
+      <p id="order-list-status" role="status" aria-live="polite"></p>
+      <div class="table-scroll" tabindex="0" aria-label="Imported order list"><table><caption>Imported orders · newest first</caption><thead><tr><th scope="col">Order number</th><th scope="col">Platform reference</th><th scope="col">Imported</th><th scope="col">Label status</th></tr></thead><tbody id="orders"></tbody></table></div>
+      </div>
+      <aside class="import-tools" aria-label="Import files">
       <form id="import-form">
         <input type="file" id="workbook" aria-label="Choose WMS XLSX export" accept=".xlsx" required>
         <button type="submit">Import and preview</button>
@@ -54,12 +63,7 @@
           <span id="folder-import-status" role="status" aria-live="polite"></span>
         </div>
       </div>
-      <h2>Imported WMS orders</h2>
-      <p>Select an order to review and edit its shipping details. Existing orders are retained when you import them again.</p>
-      <label for="order-search">Find order<input id="order-search" type="search" placeholder="Order number or platform reference"></label>
-      <label><input id="new-orders-only" type="checkbox"> Only orders with no label attempts</label>
-      <p id="order-list-status" role="status" aria-live="polite"></p>
-      <div class="table-scroll" tabindex="0" aria-label="Imported order list"><table><caption>Imported orders · newest first</caption><thead><tr><th scope="col">Order number</th><th scope="col">Platform reference</th><th scope="col">Imported</th><th scope="col">Label status</th></tr></thead><tbody id="orders"></tbody></table></div>
+      </aside>
     </section>
     <div id="panel-orders" role="tabpanel" aria-labelledby="tab-orders" tabindex="0" hidden>
       <section id="no-order-selected">
@@ -73,6 +77,10 @@
           <button type="button" data-open-tab="import">Choose another order</button>
         </div>
         <p id="configuration-mode">Simulation only — carrier choices do not buy usable postage.</p>
+        <div id="configuration-actions">
+          <div id="validation-result" role="status" aria-live="polite"></div>
+          <button type="button" id="create-label" disabled aria-describedby="validation-result">Create simulated label</button>
+        </div>
         <form id="configuration-form">
           <div class="shipper-card">
             <h3>Shipper / return address</h3>
@@ -91,12 +99,8 @@
             <h3 id="customs-heading">Canada customs</h3>
             <div id="customs-fields" class="fields"></div>
           </div>
-          <div id="configuration-actions">
-            <button type="button" id="create-label" disabled aria-describedby="validation-result">Create simulated label</button>
-          </div>
         </form>
         <div id="purchase-result" role="status" aria-live="polite"></div>
-        <div id="validation-result" role="status" aria-live="polite"></div>
         <details><summary>Imported data</summary><pre id="order-preview"></pre></details>
       </section>
     </div>
