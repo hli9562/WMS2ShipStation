@@ -18,3 +18,12 @@ backups/
 
 # Deliberately versioned synthetic PM acceptance-test workbooks.
 !tests/fixtures/pm/*.xlsx
+
+# Local tutorial build scratch and generated bundles.
+/tmp/
+/output/*
+!/output/pdf/
+/output/pdf/*
+!/output/pdf/onboarding/
+# This reviewed training PDF contains synthetic examples, not shipment labels.
+!/output/pdf/onboarding/WMS2ShipStation_新员工操作手册.pdf

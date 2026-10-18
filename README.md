@@ -8,6 +8,16 @@ Current checkpoint: Docker application, migrations, XLSX import and order previe
 
 Use [Test deployment and acceptance testing](docs/TEST_DEPLOYMENT.md) for a copy-and-paste Codex prompt, an isolated local workspace, and the five-XLSX acceptance checklist.
 
+## Employee onboarding tutorial
+
+The Chinese employee guide includes numbered screenshots, WMS export/import steps,
+US package units, confirmed purchases, thermal printing, tracking entry, and
+troubleshooting. WMS export/tracking-entry menus and the shared folder location
+are marked for supervisor confirmation. Screenshots use synthetic training data.
+
+- [Markdown guide](output/pdf/onboarding/WMS2ShipStation_新员工操作手册.md)
+- [Printable PDF](output/pdf/onboarding/WMS2ShipStation_新员工操作手册.pdf)
+
 ## Run with Docker
 
 Install and start Docker Desktop (or another Docker engine with Compose v2), then:
