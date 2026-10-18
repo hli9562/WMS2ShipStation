@@ -206,7 +206,6 @@ async function showConfiguration(order) {
   providerSelect.onchange = () => refreshCatalog(false);
   refreshCatalog(true);
   field(shipping, 'shipping.ship_date', 'Ship date', s.ship_date, null, 'date');
-  field(shipping, 'shipping.timezone', 'Timezone', s.timezone);
   field(shipping, 'shipping.residential', 'Recipient address type', s.residential, [['true', 'Residential'], ['false', 'Commercial']]);
   const extras = document.createElement('details');
   extras.className = 'shipping-extras';

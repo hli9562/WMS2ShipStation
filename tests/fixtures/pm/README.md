@@ -57,7 +57,7 @@ has its own data volume; you can reuse it for additional tests.
 ## Simulated shipping and reports
 
 1. Open any valid imported order. Choose **Simulation — no postage**, the demo
-   carrier/service/package, today's ship date, timezone `America/Chicago`,
+   carrier/service/package, today's ship date, timezone is derived automatically from the Katy shipper address,
    Residential or Commercial, confirmation **None**, and insurance **None**.
 2. Add a synthetic shipper in **Settings**, for example contact name
    `PM Test Warehouse`, phone `555-555-0101`, street `100 Synthetic Warehouse St`,

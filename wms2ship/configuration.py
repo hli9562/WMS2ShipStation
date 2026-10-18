@@ -3,7 +3,6 @@ import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Literal
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -187,10 +186,6 @@ def validate_order(order, catalog):
                 issue(f"shipping.{field}", "Option does not support this destination scope.")
     if not shipping.get("ship_date"):
         issue("shipping.ship_date", "Choose a ship date.")
-    try:
-        ZoneInfo(shipping.get("timezone", ""))
-    except (ZoneInfoNotFoundError, ValueError):
-        issue("shipping.timezone", "Enter an IANA timezone, for example America/Chicago.")
     if shipping.get("residential") is None:
         issue("shipping.residential", "Choose residential or commercial.")
     if (
@@ -256,6 +251,15 @@ def catalog(provider: str, request: Request):
 @router.patch("/api/orders/{order_id}")
 def configure(order_id: str, payload: OrderConfiguration, request: Request):
     values = payload.model_dump(mode="json")
+    origin = values["origin"]
+    # Only the Katy warehouse is supported; never trust a manually supplied timezone.
+    values["shipping"]["timezone"] = (
+        "America/Chicago"
+        if origin["country"] == "US"
+        and origin["state"] == "TX"
+        and origin["city"].casefold() == "katy"
+        else ""
+    )
     with request.app.state.engine.begin() as db:
         result = db.execute(
             text(

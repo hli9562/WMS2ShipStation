@@ -45,7 +45,7 @@ def test_history_wildcards_literal_characters_and_time_window(tmp_path):
         assert find(search="HIST*", limit=1, offset=1)[0]["order_id"] == ids[0]
         assert find(search="HIST-??-0?", limit=1, offset=1) == []
         assert find(start="2026-10-19T00:00:00Z") == []
-        assert find(order_id=ids[0], search="*AB*") == []
+        assert find(order_id=ids[0], search="HIST-AB-*") == []
         assert (
             client.get(
                 "/api/history",

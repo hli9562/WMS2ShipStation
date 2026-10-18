@@ -58,9 +58,11 @@ def test_per_order_configuration_and_stale_version(tmp_path):
         assert not check["valid"]
         order = client.get(f"/api/orders/{order_id}").json()
         config = draft(order)
+        config["shipping"].pop("timezone")
         saved = client.patch(f"/api/orders/{order_id}", json=config, headers=headers)
         assert saved.status_code == 200
         assert saved.json()["version"] == 2
+        assert saved.json()["shipping"]["timezone"] == "America/Chicago"
         assert (
             client.patch(f"/api/orders/{order_id}", json=config, headers=headers).status_code == 409
         )
@@ -154,3 +156,19 @@ def test_shipping_addons_persist_and_validate_carrier_scope(tmp_path):
         catalog["carriers"][0]["code"] = "fedex"
         catalog["carriers"][0]["packages"][0]["international"] = True
         assert not validate_order(saved, catalog)
+
+
+def test_shipper_address_overrides_manual_timezone(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        upload(client, workbook())
+        order_id = client.get("/api/orders").json()[0]["id"]
+        config = draft(client.get(f"/api/orders/{order_id}").json())
+        config["shipping"]["timezone"] = "America/Los_Angeles"
+        config["origin"].update(city="katy", state="Texas", country="United States")
+        saved = client.patch(
+            f"/api/orders/{order_id}",
+            json=config,
+            headers={"x-csrf-token": client.app.state.csrf_token},
+        )
+        assert saved.status_code == 200
+        assert saved.json()["shipping"]["timezone"] == "America/Chicago"

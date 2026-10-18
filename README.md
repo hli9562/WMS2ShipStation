@@ -202,3 +202,6 @@ local timezone. The app converts these to timezone-aware timestamps for server
 filtering. **Apply filters / refresh** starts at the first matching page;
 **Load more history** uses the same filters. **Clear filters** restores all
 history. Filters apply before pagination, including older records.
+
+The shipping timezone is derived automatically from the supported Katy, TX, US
+shipper address (`America/Chicago`); no timezone entry is needed.
