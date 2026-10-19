@@ -16,19 +16,15 @@ from wms2ship.contacts import router as contacts_router
 from wms2ship.db import make_engine, migrate
 from wms2ship.import_routes import router as import_router
 from wms2ship.labels import router as label_router
-from wms2ship.providers import FakeProvider
 from wms2ship.purchases import recover_interrupted
 from wms2ship.purchases import router as purchase_router
 from wms2ship.reports import router as review_router
 from wms2ship.sample import sample_workbook
-from wms2ship.shipment_source import ShipmentSource
-from wms2ship.shipstation import (
-    ProviderUnavailable,
-    ShipStationProvider,
-    ShipStationTestProvider,
-)
+from wms2ship.shipstation import ProviderUnavailable
 from wms2ship.voids import recover_interrupted_voids
 from wms2ship.voids import router as void_router
+from wms2ship.workspace_settings import initialize_workspace
+from wms2ship.workspace_settings import router as settings_router
 
 ROOT = Path(__file__).parent
 
@@ -43,33 +39,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.engine = make_engine(settings)
         recover_interrupted(app.state.engine)
         recover_interrupted_voids(app.state.engine)
-        app.state.providers = {"fake": FakeProvider()}
-        app.state.shipment_source = None
-        if (
-            settings.shipstation_api_key.get_secret_value()
-            and settings.shipstation_api_secret.get_secret_value()
-        ):
-            app.state.providers["shipstation"] = ShipStationProvider(
-                settings.shipstation_api_key.get_secret_value(),
-                settings.shipstation_api_secret.get_secret_value(),
-                settings.enable_live_purchase,
-            )
-            app.state.shipment_source = ShipmentSource(
-                settings.shipstation_api_key.get_secret_value(),
-                settings.shipstation_api_secret.get_secret_value(),
-            )
-
-        if "shipstation" in app.state.providers:
-            app.state.providers["shipstation_test"] = ShipStationTestProvider(
-                settings.shipstation_api_key.get_secret_value(),
-                settings.shipstation_api_secret.get_secret_value(),
-                lookup_cache=app.state.providers["shipstation"].lookup_cache,
-            )
+        initialize_workspace(app)
 
         app.state.csrf_token = secrets.token_urlsafe(32)
         try:
             yield
         finally:
+            for connection in app.state.retired_connections:
+                connection.close()
             if app.state.shipment_source:
                 app.state.shipment_source.close()
             for provider in app.state.providers.values():
@@ -82,6 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(import_router)
     app.include_router(configuration_router)
     app.include_router(contacts_router)
+    app.include_router(settings_router)
     app.include_router(review_router)
     app.include_router(carrier_fee_router)
     app.include_router(purchase_router)

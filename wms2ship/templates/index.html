@@ -7,6 +7,7 @@
   <script src="/static/app.js" defer></script>
   <script src="/static/folder-inbox.js" defer></script>
   <script src="/static/carrier-fees.js" defer></script>
+  <script src="/static/workspace-settings.js" defer></script>
   <title>Apex · WMS2ShipStation</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -96,6 +97,8 @@
             <div class="shipping-card">
               <h3>Package weight and dimensions</h3>
               <p>Measurements are converted to oz and inches, then rounded up to whole numbers.</p>
+              <label class="package-preset-label">Package template<select id="package-preset"><option value="">Keep current dimensions</option></select></label>
+              <p class="field-note">Selecting a template fills dimensions only. Check actual packed weight.</p>
               <div id="package-fields" class="fields"></div>
             </div>
             <div class="shipping-card">
@@ -156,6 +159,57 @@
       <button type="button" id="fee-more" hidden>Load more orders</button>
     </section>
     <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
+      <h2>Workspace settings</h2>
+      <div class="settings-grid">
+        <section class="settings-card">
+          <h3>ShipStation connection</h3>
+          <p id="connection-summary" role="status">Loading connection status…</p>
+          <form id="connection-form" autocomplete="off">
+            <div class="fields">
+              <label>V1 API Key<input type="password" name="api_key" autocomplete="new-password" placeholder="Leave blank to keep saved key"></label>
+              <label>V1 API Secret<input type="password" name="api_secret" autocomplete="new-password" placeholder="Leave blank to keep saved secret"></label>
+            </div>
+            <button type="button" id="test-connection">Test connection</button>
+            <button type="submit">Save and connect</button>
+          </form>
+          <p class="field-note">Blank fields test the current connection. New credentials replace saved values only after a successful test. This never buys a label.</p>
+          <p id="connection-status" role="status" aria-live="polite"></p>
+        </section>
+        <section class="settings-card">
+          <h3>Default shipping settings</h3>
+          <p>Used when opening an order without saved shipping settings. Existing saved orders keep their selections.</p>
+          <form id="shipping-defaults-form">
+            <div class="fields">
+              <label>Carrier<select name="carrier_code"><option value="">Choose per order</option></select></label>
+              <label>Service<select name="service_code"><option value="">Choose per order</option></select></label>
+              <label>Package type<select name="package_code"><option value="">Choose per order</option></select></label>
+              <label>Address type<select name="residential"><option value="true">Residential</option><option value="false">Commercial</option></select></label>
+              <label>Insurance<select name="insurance"><option value="none">None</option><option value="carrier">Carrier</option></select></label>
+              <label>Delivery confirmation<select name="confirmation"><option value="none">None</option><option value="delivery">Delivery confirmation</option><option value="signature">Signature</option><option value="adult_signature">Adult signature</option><option value="direct_signature">Direct signature (FedEx)</option></select></label>
+            </div>
+            <button type="button" id="load-default-carriers">Load carrier choices</button>
+            <button type="submit">Save defaults</button>
+          </form>
+          <p id="shipping-defaults-status" role="status" aria-live="polite"></p>
+        </section>
+      </div>
+      <section class="settings-card">
+        <h3>Package templates</h3>
+        <p>Save common boxes for one-click dimensions in Shipping details. Inches are rounded up to whole numbers; actual weight is entered per order.</p>
+        <div id="package-template-list"></div>
+        <h4 id="package-template-heading">Add package template</h4>
+        <form id="package-template-form">
+          <div class="fields">
+            <label>Template name<input name="name" placeholder="e.g. Small box" maxlength="80" required></label>
+            <label>Length (in)<input name="length_in" type="number" min="0.000001" step="any" required></label>
+            <label>Width (in)<input name="width_in" type="number" min="0.000001" step="any" required></label>
+            <label>Height (in)<input name="height_in" type="number" min="0.000001" step="any" required></label>
+          </div>
+          <button type="submit">Save template</button>
+          <button type="button" id="new-package-template">New template</button>
+        </form>
+        <p id="package-template-status" role="status" aria-live="polite"></p>
+      </section>
       <h2>Shipper contacts</h2>
       <p>Save contacts for the Katy warehouse. A single contact is used automatically; with multiple contacts, choose a default below. Orders with saved shipper details keep their address.</p>
       <div id="contact-list"></div>

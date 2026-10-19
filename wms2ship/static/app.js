@@ -222,6 +222,7 @@ function field(parent, name, label, value = '', options = null, type = 'text') {
 async function showConfiguration(order) {
   await providersReady;
   await contactsReady;
+  await workspaceSettingsReady;
   currentOrder = order;
   catalogLoaded = false;
   scheduleReadiness();
@@ -245,6 +246,7 @@ async function showConfiguration(order) {
   const packageFields = document.querySelector('#package-fields');
   [origin, shipping, customs, packageFields].forEach(node => node.replaceChildren());
   const packageData = order.packages[0] || {};
+  renderPackagePresets();
   for (const [key, label, factor] of packageUnits) {
     const usKey = key === 'weight_g' ? 'weight_oz' : key.replace('_mm', '_in');
     const rawValue = packageData[usKey] ?? (packageData[key] == null ? null : packageData[key] / factor);
@@ -262,7 +264,7 @@ async function showConfiguration(order) {
   }
   renderShipperChoices();
   updateOriginSummary(true);
-  const s = { ...(order.shipping || {}) };
+  const s = { ...(order.shipping == null ? workspaceSettings.shipping_defaults : order.shipping) };
   if (availableProviders.some(p => p.code === 'shipstation' && p.live_purchase_enabled)) s.provider = 'shipstation';
   else if (availableProviders.some(p => p.code === 'shipstation_test')) s.provider = 'shipstation_test';
   const providerSelect = document.createElement('input');

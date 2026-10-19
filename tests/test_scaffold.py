@@ -35,7 +35,7 @@ def test_migrations_restart_and_foreign_keys(tmp_path):
         assert client.get("/health").status_code == 200
         with sqlite3.connect(tmp_path / "app.sqlite3") as db:
             assert db.execute("SELECT wms_order_no FROM orders").fetchone() == ("WMS-TEST",)
-            assert db.execute("SELECT version_num FROM alembic_version").fetchone() == ("0006",)
+            assert db.execute("SELECT version_num FROM alembic_version").fetchone() == ("0007",)
         assert settings.labels_dir.joinpath("test.txt").read_text() == "artifact survives restart"
 
 
@@ -73,11 +73,13 @@ def test_upgrade_preserves_both_early_0004_database_layouts(tmp_path, layout):
         else:
             for name in ("weight_oz", "length_in", "width_in", "height_in"):
                 db.execute(f"ALTER TABLE packages DROP COLUMN {name}")
+        db.execute("DROP TABLE workspace_preferences")
+        db.execute("DROP TABLE package_templates")
         db.execute("UPDATE alembic_version SET version_num='0004'")
     with TestClient(create_app(settings)) as client:
         assert client.get("/health").status_code == 200
         with sqlite3.connect(tmp_path / "app.sqlite3") as db:
-            assert db.execute("SELECT version_num FROM alembic_version").fetchone() == ("0006",)
+            assert db.execute("SELECT version_num FROM alembic_version").fetchone() == ("0007",)
             assert db.execute("SELECT wms_order_no FROM orders").fetchone() == ("PRESERVE-ME",)
             assert db.execute("SELECT weight_g FROM packages").fetchone() == (454,)
             expected = 16 if layout == "local_us_units" else None

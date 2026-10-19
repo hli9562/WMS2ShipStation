@@ -27,3 +27,6 @@ backups/
 !/output/pdf/onboarding/
 # This reviewed training PDF contains synthetic examples, not shipment labels.
 !/output/pdf/onboarding/WMS2ShipStation_新员工操作手册.pdf
+
+# Local runtime API credentials saved from Settings.
+shipstation_credentials.json

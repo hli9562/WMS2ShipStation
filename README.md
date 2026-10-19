@@ -141,6 +141,31 @@ previously saved orders. Shipper and return addresses still use the Katy, TX
 warehouse. Contacts are stored in the local database and included in backups;
 the new table is created automatically on application startup.
 
+### Workspace settings
+
+**Settings** now contains ShipStation connection management, default shipping
+preferences, reusable package templates, and the existing shipper contacts.
+
+- **Test connection** makes read-only V1 carrier and shipment requests. Blank key
+  fields test the current credentials. **Save and connect** verifies both entered
+  credentials before replacing the connection; failed tests preserve existing
+  credentials. Changes apply without restarting and never enable paid purchasing.
+  The server's `WMS_ENABLE_LIVE_PURCHASE` flag and per-purchase confirmation still apply.
+- Verified credentials saved in Settings take precedence over env credentials on
+  restart. They live in `WMS_DATA_DIR/shipstation_credentials.json` (mode 0600) and
+  are never returned by the settings API or populated into browser fields. This
+  local credential file is excluded from Git and normal data backups; re-enter
+  credentials separately when restoring on another machine.
+- **Default shipping settings** supply carrier/service/package choices,
+  residential address type, insurance, and confirmation for orders without saved
+  shipping settings. Load carrier choices from the connected account, then save.
+  Existing configured orders and imported measurements are not overwritten.
+- **Package templates** store named length/width/height presets, rounded up to
+  whole inches. Choose a template in Shipping details to fill dimensions; actual
+  weight stays unchanged. Orders retain their own dimensions when a template is
+  edited or deleted. Preferences and templates are stored in SQLite and included
+  in normal data backups. Migration 0007 adds their tables without altering orders.
+
 ### Legacy shipment review API
 
 The Manager review tab has been removed. Existing records and the read-only
