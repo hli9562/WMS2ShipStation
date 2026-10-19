@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from wms2ship.configuration import DraftModel, validate_order
+from wms2ship.orders import load_order
 from wms2ship.providers import PurchaseRejected, provider_mode
 
 router = APIRouter()
@@ -19,28 +20,6 @@ router = APIRouter()
 
 def now():
     return datetime.now(UTC).isoformat()
-
-
-def load_order(db, order_id):
-    row = db.execute(text("SELECT * FROM orders WHERE id=:id"), {"id": order_id}).mappings().first()
-    if not row:
-        raise HTTPException(404, "Order not found.")
-    result = dict(row)
-    for field in ("recipient", "origin", "shipping", "customs"):
-        result[field] = json.loads(result.pop(f"{field}_json") or "null")
-    result["packages"] = [
-        dict(p)
-        for p in db.execute(
-            text("SELECT * FROM packages WHERE order_id=:id"), {"id": order_id}
-        ).mappings()
-    ]
-    result["items"] = [
-        dict(p)
-        for p in db.execute(
-            text("SELECT * FROM order_items WHERE order_id=:id"), {"id": order_id}
-        ).mappings()
-    ]
-    return result
 
 
 def event(db, attempt_id, kind, evidence=None):

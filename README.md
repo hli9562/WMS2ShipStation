@@ -28,6 +28,8 @@ docker compose up --build -d --wait
 
 Open http://localhost:8080. No credentials or `.env` file are required for this checkpoint. Optional: copy `.env.example` to `.env` and change `PORT` if 8080 is in use. The published port binds only to your computer's loopback interface.
 
+To share with coworkers on the same LAN, set `WMS_BIND_ADDRESS=0.0.0.0` in your local env file and add the host computer's LAN IP to `WMS_ALLOWED_HOSTS`, for example `WMS_ALLOWED_HOSTS='["localhost","127.0.0.1","192.168.86.46"]'`. Recreate the container, then open `http://<host-LAN-IP>:<PORT>` on the other computer. All users share the host's data, and the host must remain awake. This provides access without a login to devices that can reach the port. Folder Monitor requires a browser secure context (localhost or HTTPS); use manual XLSX upload when connecting over LAN HTTP.
+
 ```sh
 docker compose logs -f app
 docker compose down
@@ -205,7 +207,14 @@ and do not require ShipStation credentials.
 ### History filters
 
 **History** displays labels and attempts in a table with tracking, charges,
-exceptions, and Letter/original PDF links. Search across order/platform
+exceptions, and thermal/Letter/original PDF links. The thermal print and Letter
+versions add `Order #: <WMS Order Number>` in verified blank space at the bottom
+of each page, without resizing the carrier artwork or barcodes. Existing labels
+also receive the message on reprint; no new postage is purchased. If the order
+number is too long or there is no safe blank area, printing returns an error and
+the **Original carrier PDF** link remains available. The original PDF is stored
+unchanged. This is a local print annotation, not a ShipStation account message setting.
+Search across order/platform
 references, tracking, attempt/label IDs, provider, mode, status, or exception.
 `*` matches any number of characters; `?` matches one character. For example,
 `PM-*` matches an order prefix and `*1234` a tracking suffix. Plain text performs
@@ -237,6 +246,13 @@ For orders without a saved ship date, Shipping details defaults to today in Katy
 Monday–Friday. Weekend dates advance to Monday. Holidays are not excluded. The
 date remains editable, and previously saved dates are preserved.
 
+
+Imported package measurements are automatically converted to ounces and inches
+for shipping forms and the imported-data preview. Metric source values remain
+available internally for compatibility. Import accepts cm/mm/in dimensions and
+kg/g/lb/oz weight; weight and each dimension are rounded up to whole oz/in values after conversion.
+The same whole numbers are used in shipping forms and carrier requests. Older imported orders also
+display converted US measurements when opened.
 
 ## Manually remove a local label
 

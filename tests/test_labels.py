@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 from tests.test_purchases import setup_order
 from wms2ship.config import Settings
+from wms2ship.label_print import order_label_pdf
 from wms2ship.labels import letter_pdf
 from wms2ship.main import create_app
 from wms2ship.providers import demo_pdf
@@ -48,7 +49,7 @@ def test_reprint_history_and_missing_artifact_do_not_repurchase(tmp_path):
         ).json()
         label_id = attempt["labels"][0]["id"]
         for _ in range(2):
-            response = client.get(f"/api/labels/{label_id}/pdf")
+            response = client.get(f"/api/labels/{label_id}/pdf?kind=original")
             assert response.status_code == 200
             assert response.content == demo_pdf()
             assert tuple(PdfReader(io.BytesIO(response.content)).pages[0].mediabox) == (
@@ -57,6 +58,16 @@ def test_reprint_history_and_missing_artifact_do_not_repurchase(tmp_path):
                 288,
                 432,
             )
+        printed = client.get(f"/api/labels/{label_id}/pdf?kind=print")
+        assert printed.status_code == 200
+        printed_reader = PdfReader(io.BytesIO(printed.content))
+        with client.app.state.engine.connect() as db:
+            number = db.execute(
+                text("SELECT wms_order_no FROM orders WHERE id=:id"), {"id": order_id}
+            ).scalar_one()
+        assert f"Order #: {number}" in printed_reader.pages[0].extract_text()
+        assert tuple(printed_reader.pages[0].mediabox) == (0, 0, 288, 432)
+        assert client.get(f"/api/labels/{label_id}/pdf").content.startswith(b"%PDF-")
         letter = client.get(f"/api/labels/{label_id}/pdf?kind=letter")
         assert letter.status_code == 200
         assert tuple(PdfReader(io.BytesIO(letter.content)).pages[0].mediabox) == (0, 0, 612, 792)
@@ -87,3 +98,48 @@ def test_reprint_history_and_missing_artifact_do_not_repurchase(tmp_path):
     with TestClient(create_app(settings)) as client:
         assert len(client.get("/api/history").json()) == 1
         assert client.get(f"/api/labels/{label_id}/pdf").status_code == 200
+
+
+def test_print_message_preserves_carrier_artwork_and_handles_rotation():
+    import pypdfium2 as pdfium
+    from PIL import ImageChops
+
+    original = demo_pdf()
+    output = order_label_pdf(original, "ORDER-(123)\\ABC")
+    reader = PdfReader(io.BytesIO(output))
+    assert "Order #: ORDER-(123)\\ABC" in reader.pages[0].extract_text()
+    assert "SIMULATION" in reader.pages[0].extract_text()
+    # At 300dpi, every original non-white pixel remains identical.
+    with pdfium.PdfDocument(original) as before, pdfium.PdfDocument(output) as after:
+        first = before[0].render(scale=300 / 72).to_pil().convert("RGB")
+        second = after[0].render(scale=300 / 72).to_pil().convert("RGB")
+        assert first.size == second.size
+        occupied = first.convert("L").point(lambda p: 255 if p < 250 else 0)
+        differences = ImageChops.difference(first, second)
+        assert ImageChops.multiply(differences.convert("L"), occupied).getbbox() is None
+
+    writer = PdfWriter(clone_from=PdfReader(io.BytesIO(original)))
+    writer.pages[0].rotate(90)
+    stream = io.BytesIO()
+    writer.write(stream)
+    rotated = PdfReader(io.BytesIO(order_label_pdf(stream.getvalue(), "ROTATED")))
+    assert tuple(rotated.pages[0].mediabox) == (0, 0, 432, 288)
+    assert "Order #: ROTATED" in rotated.pages[0].extract_text()
+
+
+def test_message_refuses_to_cover_artwork_or_shrink_long_order_number():
+    from pypdf.generic import DecodedStreamObject, NameObject
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=288, height=432)
+    ink = DecodedStreamObject()
+    ink.set_data(b"0 g 0 0 288 432 re f")
+    page[NameObject("/Contents")] = ink
+    stream = io.BytesIO()
+    writer.write(stream)
+    with pytest.raises(ValueError, match="No safe blank area"):
+        order_label_pdf(stream.getvalue(), "ORDER123")
+    with pytest.raises(ValueError, match="too long"):
+        order_label_pdf(demo_pdf(), "X" * 200)
+    with pytest.raises(ValueError, match="printable"):
+        order_label_pdf(demo_pdf(), "ORDER\n123")

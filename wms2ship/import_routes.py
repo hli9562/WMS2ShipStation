@@ -8,6 +8,7 @@ from sqlalchemy import bindparam, text
 from starlette.concurrency import run_in_threadpool
 
 from wms2ship.importer import ImportRejected, import_workbook
+from wms2ship.orders import load_order
 from wms2ship.ship_dates import default_ship_date
 
 router = APIRouter()
@@ -136,24 +137,6 @@ def orders(request: Request):
 @router.get("/api/orders/{order_id}")
 def order_detail(order_id: str, request: Request):
     with request.app.state.engine.connect() as db:
-        row = (
-            db.execute(text("SELECT * FROM orders WHERE id=:id"), {"id": order_id})
-            .mappings()
-            .first()
-        )
-        if not row:
-            raise HTTPException(404, "Order not found.")
-        result = dict(row)
-        for key in ("recipient", "origin", "shipping", "customs"):
-            result[key] = json.loads(result.pop(f"{key}_json") or "null")
-        for key, table in (("packages", "packages"), ("items", "order_items")):
-            result[key] = [
-                dict(item)
-                for item in db.execute(
-                    text(f"SELECT * FROM {table} WHERE order_id=:id"), {"id": order_id}
-                )
-                .mappings()
-                .all()
-            ]
+        result = load_order(db, order_id)
         result["default_ship_date"] = default_ship_date()
         return result

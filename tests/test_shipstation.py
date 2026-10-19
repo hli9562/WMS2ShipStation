@@ -38,9 +38,9 @@ def snapshot():
 def test_payload_us_units_customs_and_no_order_creation():
     payload = build_payload(snapshot())
     assert payload["weight"]["units"] == "ounces"
-    assert payload["weight"]["value"] == pytest.approx(460 / 28.349523125, abs=0.000001)
+    assert payload["weight"]["value"] == 17
     assert payload["dimensions"]["units"] == "inches"
-    assert payload["dimensions"]["width"] == pytest.approx(185 / 25.4, abs=0.000001)
+    assert payload["dimensions"]["width"] == 8
     assert payload["shipFrom"]["city"] == "Katy"
     assert payload["internationalOptions"]["customsItems"][0]["value"] == 10
     assert "orderId" not in payload

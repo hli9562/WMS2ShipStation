@@ -2,6 +2,7 @@
 
 import base64
 import binascii
+import math
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 from threading import Lock
@@ -55,13 +56,13 @@ def build_payload(snapshot):
         "shipDate": shipping["ship_date"],
         "confirmation": shipping["confirmation"],
         "weight": {
-            "value": package.get("weight_oz") or round(package["weight_g"] / 28.349523125, 6),
+            "value": math.ceil(package.get("weight_oz") or package["weight_g"] / 28.349523125),
             "units": "ounces",
         },
         "dimensions": {
             "units": "inches",
             **{
-                key: package.get(f"{key}_in") or round(package[f"{key}_mm"] / 25.4, 6)
+                key: math.ceil(package.get(f"{key}_in") or package[f"{key}_mm"] / 25.4)
                 for key in ("length", "width", "height")
             },
         },

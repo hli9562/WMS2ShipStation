@@ -208,6 +208,13 @@ function field(parent, name, label, value = '', options = null, type = 'text') {
   input.name = name;
   input.type = type;
   input.value = value == null ? '' : String(value);
+  if (name === 'country' || name.endsWith('.country') || name.endsWith('.country_of_origin')) {
+    input.maxLength = 2;
+    input.placeholder = 'US / CA';
+    input.pattern = '[A-Za-z]{2}';
+    input.value = input.value.toUpperCase();
+    input.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
+  }
   wrapper.append(input);
   parent.append(wrapper);
   return input;
@@ -218,9 +225,19 @@ async function showConfiguration(order) {
   currentOrder = order;
   catalogLoaded = false;
   scheduleReadiness();
-  document.querySelector('#order-preview').textContent = JSON.stringify(order, null, 2);
+  const preview = { ...order, packages: order.packages.map(packageData => {
+    const converted = { ...packageData };
+    for (const [metric, , factor] of packageUnits) {
+      const us = metric === 'weight_g' ? 'weight_oz' : metric.replace('_mm', '_in');
+      const raw = packageData[us] ?? (packageData[metric] == null ? null : packageData[metric] / factor);
+      converted[us] = raw == null ? null : Math.ceil(raw);
+      delete converted[metric];
+    }
+    return converted;
+  }) };
+  document.querySelector('#order-preview').textContent = JSON.stringify(preview, null, 2);
   const weightOz = order.packages[0]?.weight_oz ?? order.packages[0]?.weight_g / 28.349523125;
-  document.querySelector('#order-summary').textContent = `${order.wms_order_no} · ${order.recipient.country} · ${weightOz ? Number(weightOz.toFixed(6)) : '?'} oz`;
+  document.querySelector('#order-summary').textContent = `${order.wms_order_no} · ${order.recipient.country} · ${weightOz ? Math.ceil(weightOz) : '?'} oz`;
   document.querySelector('#validation-result').replaceChildren();
   const origin = document.querySelector('#origin-fields');
   const shipping = document.querySelector('#shipping-fields');
@@ -231,16 +248,16 @@ async function showConfiguration(order) {
   for (const [key, label, factor] of packageUnits) {
     const usKey = key === 'weight_g' ? 'weight_oz' : key.replace('_mm', '_in');
     const rawValue = packageData[usKey] ?? (packageData[key] == null ? null : packageData[key] / factor);
-    const value = rawValue == null ? '' : Number(rawValue.toFixed(6));
+    const value = rawValue == null ? '' : Math.ceil(rawValue);
     const input = field(packageFields, `package.${key}`, label, value, null, 'number');
-    input.dataset.originalDisplay = input.value;
-    input.dataset.originalMetric = packageData[key] ?? '';
-    input.dataset.originalUS = rawValue ?? '';
-    input.min = '0.000001';
-    input.step = 'any';
+    input.min = '1';
+    input.step = '1';
+    input.addEventListener('change', () => {
+      if (input.value && Number(input.value) > 0) input.value = Math.ceil(Number(input.value));
+    });
     input.required = true;
   }
-  for (const [key, label] of Object.entries({ name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US or United States)' })) {
+  for (const [key, label] of Object.entries({ name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US / CA)' })) {
     field(origin, `origin.${key}`, label, order.origin?.[key]);
   }
   renderShipperChoices();
@@ -364,15 +381,11 @@ function configurationPayload() {
   const packageMeasurements = { id: currentOrder.packages[0]?.id, us_units: {} };
   for (const [key, , factor] of packageUnits) {
     const input = document.querySelector('#configuration-form').elements.namedItem(`package.${key}`);
-    // Keep exact US entries for display and carrier requests; metric columns
-    // remain available for imports and older clients.
-    const value = Number(input.value);
+    // Displayed whole US units are also used for storage and carrier requests.
+    const value = Math.ceil(Number(input.value));
     const usKey = key === 'weight_g' ? 'weight_oz' : key.replace('_mm', '_in');
-    packageMeasurements.us_units[usKey] = input.value === input.dataset.originalDisplay
-      ? Number(input.dataset.originalUS) : value;
-    packageMeasurements[key] = input.value === input.dataset.originalDisplay
-      ? Number(input.dataset.originalMetric)
-      : value > 0 ? Math.ceil(value * factor - 1e-9) : value;
+    packageMeasurements.us_units[usKey] = value;
+    packageMeasurements[key] = value > 0 ? Math.ceil(value * factor - 1e-9) : value;
   }
   return { version: currentOrder.version, origin, shipping, customs, package: packageMeasurements };
 }
@@ -463,8 +476,8 @@ async function loadHistory(reset = false) {
       for (const value of [row.mode.toUpperCase(), row.state, row.provider_code, row.tracking_number || '—', row.charge_minor == null ? 'Not recorded' : `${(row.charge_minor / 100).toFixed(2)} ${row.currency}`, row.error_code || '—']) message(tr, value, 'td');
       const links = message(tr, '', 'td');
       if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
-        for (const kind of ['original', 'letter']) {
-          const link = message(links, kind === 'original' ? 'Label PDF / thermal print' : 'Letter PDF (office printer)', 'a');
+        for (const [kind, title] of [['print', 'Label PDF / thermal print (Order #)'], ['original', 'Original carrier PDF'], ['letter', 'Letter PDF (office printer)']]) {
+          const link = message(links, title, 'a');
           link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`;
           link.target = '_blank'; link.rel = 'noopener';
         }
@@ -488,7 +501,7 @@ document.querySelector('#more-history').addEventListener('click', () => loadHist
 document.querySelector('#tab-history').addEventListener('click', () => loadHistory(true));
 loadHistory(true);
 
-const addressLabels = { name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US or United States)' };
+const addressLabels = { name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US / CA)' };
 let shipperContacts = [];
 let editingContactId = null;
 function editContact(contact = null) {
@@ -498,7 +511,7 @@ function editContact(contact = null) {
   container.replaceChildren();
   field(container, 'label', 'Saved contact name', contact?.label).required = true;
   for (const [key, label] of Object.entries(addressLabels)) {
-    field(container, key, label, contact?.address[key] || '');
+    field(container, key, label, contact?.address[key] || (!contact && key === 'country' ? 'US' : ''));
   }
 }
 function renderShipperChoices() {
@@ -662,10 +675,12 @@ async function loadReview(reset = true) {
       }
       const pdf = message(tr, '', 'td');
       if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
-        const link = message(pdf, 'Label PDF / thermal print', 'a');
-        link.href = `/api/labels/${row.label_id}/pdf?kind=original`;
-        link.target = '_blank';
-        link.rel = 'noopener';
+        for (const [kind, title] of [['print', 'Label PDF / thermal print (Order #)'], ['original', 'Original carrier PDF']]) {
+          const link = message(pdf, title, 'a');
+          link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`;
+          link.target = '_blank';
+          link.rel = 'noopener';
+        }
       }
       if (row.label_id) renderVoidAction(pdf, row);
     }

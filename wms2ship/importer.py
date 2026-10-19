@@ -6,7 +6,7 @@ import json
 import re
 import zipfile
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_CEILING, Decimal, InvalidOperation
 from uuid import uuid4
 
 from openpyxl import load_workbook
@@ -14,7 +14,7 @@ from sqlalchemy import MetaData, Table, select
 
 from wms2ship.config import Settings
 
-PARSER_VERSION = "1"
+PARSER_VERSION = "2"
 
 
 class ImportRejected(ValueError):
@@ -139,7 +139,11 @@ def measurements(values):
         separate = values.get(key)
         if separate is not None and decimal_value(separate) != value:
             raise ValueError(f"Combined size conflicts with separate {key}.")
-        result[f"{key}_mm"] = exact_integer(value * factor)
+        millimeters = value * factor
+        result[f"{key}_mm"] = int(millimeters.to_integral_value(rounding=ROUND_CEILING))
+        result[f"{key}_in"] = int(
+            (millimeters / Decimal("25.4")).to_integral_value(rounding=ROUND_CEILING)
+        )
     weight = re.fullmatch(
         r"\s*([\d.]+)\s*(kg|g|lb|oz)\s*", text_value(values, "weight", required=True).lower()
     )
@@ -151,7 +155,11 @@ def measurements(values):
         "lb": Decimal("453.59237"),
         "oz": Decimal("28.349523125"),
     }[weight[2]]
-    result["weight_g"] = exact_integer(decimal_value(weight[1]) * factor)
+    grams = decimal_value(weight[1]) * factor
+    result["weight_g"] = int(grams.to_integral_value(rounding=ROUND_CEILING))
+    result["weight_oz"] = int(
+        (grams / Decimal("28.349523125")).to_integral_value(rounding=ROUND_CEILING)
+    )
     return result
 
 

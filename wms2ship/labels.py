@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from pypdf import PdfReader, PdfWriter, Transformation
 from sqlalchemy import text
 
+from wms2ship.label_print import order_label_pdf
 from wms2ship.providers import provider_mode
 from wms2ship.purchases import event, now, store_pdf
 
@@ -80,7 +81,7 @@ def read_artifact(settings, row):
 
 @router.get("/api/labels/{label_id}/pdf")
 def label_pdf(
-    label_id: str, request: Request, kind: str = Query("original", pattern="^(original|letter)$")
+    label_id: str, request: Request, kind: str = Query("print", pattern="^(print|original|letter)$")
 ):
     engine = request.app.state.engine
     settings = request.app.state.settings
@@ -92,38 +93,28 @@ def label_pdf(
             raise HTTPException(404, "Label not found.")
         if status in ("pending", "uncertain", "voided"):
             raise HTTPException(409, "This label is voided or its void outcome needs verification.")
-    row = artifact(engine, label_id, kind)
-    if row is not None:
-        data = read_artifact(settings, row)
-    else:
-        data = read_artifact(settings, artifact(engine, label_id, "original"))
-        if kind == "letter":
-            try:
+        order_number = db.execute(
+            text(
+                "SELECT o.wms_order_no FROM labels l "
+                "JOIN label_attempts a ON a.id=l.attempt_id "
+                "JOIN orders o ON o.id=a.order_id WHERE l.id=:id"
+            ),
+            {"id": label_id},
+        ).scalar_one()
+    if kind in ("print", "letter"):
+        original = read_artifact(settings, artifact(engine, label_id, "original"))
+        try:
+            data = order_label_pdf(original, order_number)
+            if kind == "letter":
                 data = letter_pdf(data)
-            except Exception:
-                raise HTTPException(
-                    422,
-                    "PDF cannot be composed safely on Letter without scaling. "
-                    "Download the original and review its layout.",
-                ) from None
-            key, checksum = store_pdf(settings, f"{label_id}.letter", data)
-            with engine.begin() as db:
-                db.execute(
-                    text(
-                        "INSERT INTO label_artifacts "
-                        "(id,label_id,kind,storage_key,sha256,byte_count,created_at) VALUES "
-                        "(:id,:label,'letter',:key,:sha,:size,:time) "
-                        "ON CONFLICT(label_id,kind) DO NOTHING"
-                    ),
-                    {
-                        "id": f"{label_id}-letter",
-                        "label": label_id,
-                        "key": key,
-                        "sha": checksum,
-                        "size": len(data),
-                        "time": now(),
-                    },
-                )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return Response(
+            data,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="label-{label_id}-{kind}.pdf"'},
+        )
+    data = read_artifact(settings, artifact(engine, label_id, "original"))
     return Response(
         data,
         media_type="application/pdf",

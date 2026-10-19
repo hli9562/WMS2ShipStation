@@ -96,6 +96,11 @@ class USMeasurements(DraftModel):
     width_in: float = Field(gt=0, allow_inf_nan=False)
     height_in: float = Field(gt=0, allow_inf_nan=False)
 
+    @field_validator("weight_oz", "length_in", "width_in", "height_in")
+    @classmethod
+    def round_up_us_units(cls, value):
+        return math.ceil(value)
+
 
 class PackageMeasurements(DraftModel):
     id: str

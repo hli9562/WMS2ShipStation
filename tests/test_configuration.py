@@ -35,10 +35,10 @@ def test_package_edits_preview_save_reimport_and_provider_payload(tmp_path):
         assert saved.json()["version"] == original["version"] + 1
         payload = build_payload(saved.json())
         assert payload["weight"]["units"] == "ounces"
-        assert payload["weight"]["value"] == pytest.approx(1250 / 28.349523125, abs=0.000001)
+        assert payload["weight"]["value"] == 45
         assert payload["dimensions"]["units"] == "inches"
-        for name, mm in (("length", 315), ("width", 220), ("height", 105)):
-            assert payload["dimensions"][name] == pytest.approx(mm / 25.4, abs=0.000001)
+        for name, rounded in (("length", 13), ("width", 9), ("height", 5)):
+            assert payload["dimensions"][name] == rounded
         stale = client.patch(endpoint, json=config, headers=headers)
         assert stale.status_code == 409
         upload(client, workbook())
@@ -82,7 +82,7 @@ def test_package_edit_cannot_change_another_order(tmp_path):
         assert [client.get(f"/api/orders/{o['id']}").json() for o in orders] == original
 
 
-def test_us_measurements_preserve_exact_values_for_carrier_and_reimport(tmp_path):
+def test_us_measurements_round_up_for_carrier_and_reimport(tmp_path):
     with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
         upload(client, workbook())
         endpoint = f"/api/orders/{client.get('/api/orders').json()[0]['id']}"
@@ -102,11 +102,13 @@ def test_us_measurements_preserve_exact_values_for_carrier_and_reimport(tmp_path
         saved = client.patch(endpoint, json=config, headers=headers)
         assert saved.status_code == 200
         package = saved.json()["packages"][0]
-        assert all(package[key] == value for key, value in us.items())
+        assert {key: package[key] for key in us} == {
+            "weight_oz": 16, "length_in": 11, "width_in": 8, "height_in": 4
+        }
         payload = build_payload(saved.json())
         assert payload["weight"] == {"value": 16, "units": "ounces"}
         assert payload["dimensions"] == {
-            "units": "inches", "length": 10.25, "width": 7.5, "height": 4
+            "units": "inches", "length": 11, "width": 8, "height": 4
         }
         upload(client, workbook())
         assert client.get(endpoint).json()["packages"][0] == package

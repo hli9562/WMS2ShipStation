@@ -1,6 +1,7 @@
 import io
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
 from sqlalchemy import text
@@ -13,6 +14,7 @@ def workbook(
     *,
     order="WMS-001",
     weight="0.460 kg",
+    size="20 x 18.5 x 14 cm",
     quantity=2,
     count=1,
     tracking="",
@@ -47,7 +49,7 @@ def workbook(
         "Test City",
         "T0A 0A0",
         count,
-        "20 x 18.5 x 14 cm",
+        size,
         weight,
         "TEST-SKU",
         "AB",
@@ -92,6 +94,10 @@ def test_sample_import_duplicate_and_provenance(tmp_path):
             140,
             460,
         ]
+        assert package["weight_oz"] == 17
+        assert package["length_in"] == 8
+        assert package["width_in"] == 8
+        assert package["height_in"] == 6
         assert order["recipient"]["country"] == "CA"
         # Changed re-import must preserve operator's configuration and source data.
         with client.app.state.engine.begin() as db:
@@ -187,3 +193,34 @@ def test_original_export_header_and_size_conventions(tmp_path):
         result = upload(client, stream.getvalue()).json()
         assert result["created"] == 1
         assert result["invalid"] == 0
+
+
+@pytest.mark.parametrize("weight,expected_oz", [("1 lb", 16), ("16 oz", 16), ("453.59237 g", 16)])
+def test_import_us_units_round_up_each_dimension(tmp_path, weight, expected_oz):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        response = upload(client, workbook(weight=weight, size="10.25 x 8.5 x 4 in"))
+        assert response.json()["created"] == 1, response.json()
+        order_id = client.get("/api/orders").json()[0]["id"]
+        package = client.get(f"/api/orders/{order_id}").json()["packages"][0]
+        assert package["weight_oz"] == expected_oz
+        assert [package[k] for k in ("length_in", "width_in", "height_in")] == [11, 9, 4]
+        assert package["weight_g"] == 454
+        # Re-import preserves the already converted package.
+        assert upload(client, workbook(weight="2 kg")).json()["duplicates"] == 1
+        again = client.get(f"/api/orders/{order_id}").json()["packages"][0]
+        assert again["weight_oz"] == expected_oz
+
+
+def test_older_imports_automatically_expose_us_units(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        assert upload(client, workbook()).json()["created"] == 1
+        order_id = client.get("/api/orders").json()[0]["id"]
+        with client.app.state.engine.begin() as db:
+            db.execute(text(
+                "UPDATE packages SET weight_oz=NULL,length_in=NULL,width_in=NULL,height_in=NULL"
+            ))
+        package = client.get(f"/api/orders/{order_id}").json()["packages"][0]
+        assert package["weight_oz"] == 17
+        assert package["length_in"] == 8
+        assert package["width_in"] == 8
+        assert package["height_in"] == 6
