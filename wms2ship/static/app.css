@@ -198,7 +198,7 @@ caption { padding: 6px 0; }
 #panel-fees h3 { margin-top: 20px; }
 .fee-detail-scroll { max-height: 60vh; overflow: auto; }
 #fee-details th { position: sticky; top: 0; z-index: 1; }
-#fee-details td:nth-child(4) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#fee-details td:nth-child(5) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .shipping-main { display: grid; gap: 10px; min-width: 0; }
 #package-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }

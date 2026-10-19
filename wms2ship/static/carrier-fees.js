@@ -65,11 +65,11 @@ async function loadFees(reset = true) {
     const details = document.querySelector('#fee-details tbody');
     for (const row of data.rows) {
       const tr = message(details, '', 'tr');
-      for (const value of [row.wms_order_no, row.tracking_number || '—', row.recipient || '—', feeMoney(row.charge_minor, row.currency)]) message(tr, value, 'td');
+      for (const value of [row.wms_order_no, row.tracking_number || '—', row.recipient || '—', row.carrier || '—', feeMoney(row.charge_minor, row.currency)]) message(tr, value, 'td');
     }
     feeOffset += data.rows.length;
     feeMore.hidden = feeOffset >= data.total;
-    if (!data.total) message(message(details, '', 'tr'), 'No shipments returned by ShipStation for this period.', 'td').colSpan = 4;
+    if (!data.total) message(message(details, '', 'tr'), 'No shipments returned by ShipStation for this period.', 'td').colSpan = 5;
     feeStatus.textContent = `${data.filters.start} through ${data.filters.end} · ShipStation ship date · ${feeOffset} of ${data.total} shipment(s) shown. Excel includes every row in this period.`;
   } catch (error) {
     if (revision === feeRevision) {
