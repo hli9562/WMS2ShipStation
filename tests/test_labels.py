@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 from tests.test_purchases import setup_order
 from wms2ship.config import Settings
-from wms2ship.label_print import order_label_pdf
+from wms2ship.label_print import reference_label_pdf
 from wms2ship.labels import letter_pdf
 from wms2ship.main import create_app
 from wms2ship.providers import demo_pdf
@@ -44,6 +44,11 @@ def test_reprint_history_and_missing_artifact_do_not_repurchase(tmp_path):
     settings = Settings(data_dir=tmp_path)
     with TestClient(create_app(settings)) as client:
         order_id, headers, payload = setup_order(client)
+        with client.app.state.engine.begin() as db:
+            db.execute(
+                text("UPDATE orders SET platform_reference='PLATFORM-987654' WHERE id=:id"),
+                {"id": order_id},
+            )
         attempt = client.post(
             f"/api/orders/{order_id}/label-attempts", json=payload, headers=headers
         ).json()
@@ -63,9 +68,10 @@ def test_reprint_history_and_missing_artifact_do_not_repurchase(tmp_path):
         printed_reader = PdfReader(io.BytesIO(printed.content))
         with client.app.state.engine.connect() as db:
             number = db.execute(
-                text("SELECT wms_order_no FROM orders WHERE id=:id"), {"id": order_id}
+                text("SELECT platform_reference FROM orders WHERE id=:id"), {"id": order_id}
             ).scalar_one()
-        assert f"Order #: {number}" in printed_reader.pages[0].extract_text()
+        assert f"Platform Reference Number: {number}" in printed_reader.pages[0].extract_text()
+        assert "Order #: " not in printed_reader.pages[0].extract_text()
         assert tuple(printed_reader.pages[0].mediabox) == (0, 0, 288, 432)
         assert client.get(f"/api/labels/{label_id}/pdf").content.startswith(b"%PDF-")
         letter = client.get(f"/api/labels/{label_id}/pdf?kind=letter")
@@ -105,9 +111,9 @@ def test_print_message_preserves_carrier_artwork_and_handles_rotation():
     from PIL import ImageChops
 
     original = demo_pdf()
-    output = order_label_pdf(original, "ORDER-(123)\\ABC")
+    output = reference_label_pdf(original, "ORDER-(123)\\ABC")
     reader = PdfReader(io.BytesIO(output))
-    assert "Order #: ORDER-(123)\\ABC" in reader.pages[0].extract_text()
+    assert "Platform Reference Number: ORDER-(123)\\ABC" in reader.pages[0].extract_text()
     assert "SIMULATION" in reader.pages[0].extract_text()
     # At 300dpi, every original non-white pixel remains identical.
     with pdfium.PdfDocument(original) as before, pdfium.PdfDocument(output) as after:
@@ -122,12 +128,12 @@ def test_print_message_preserves_carrier_artwork_and_handles_rotation():
     writer.pages[0].rotate(90)
     stream = io.BytesIO()
     writer.write(stream)
-    rotated = PdfReader(io.BytesIO(order_label_pdf(stream.getvalue(), "ROTATED")))
+    rotated = PdfReader(io.BytesIO(reference_label_pdf(stream.getvalue(), "ROTATED")))
     assert tuple(rotated.pages[0].mediabox) == (0, 0, 432, 288)
-    assert "Order #: ROTATED" in rotated.pages[0].extract_text()
+    assert "Platform Reference Number: ROTATED" in rotated.pages[0].extract_text()
 
 
-def test_message_refuses_to_cover_artwork_or_shrink_long_order_number():
+def test_reference_refuses_to_cover_artwork_or_shrink_long_number():
     from pypdf.generic import DecodedStreamObject, NameObject
 
     writer = PdfWriter()
@@ -138,8 +144,14 @@ def test_message_refuses_to_cover_artwork_or_shrink_long_order_number():
     stream = io.BytesIO()
     writer.write(stream)
     with pytest.raises(ValueError, match="No safe blank area"):
-        order_label_pdf(stream.getvalue(), "ORDER123")
+        reference_label_pdf(stream.getvalue(), "ORDER123")
     with pytest.raises(ValueError, match="too long"):
-        order_label_pdf(demo_pdf(), "X" * 200)
+        reference_label_pdf(demo_pdf(), "X" * 200)
     with pytest.raises(ValueError, match="printable"):
-        order_label_pdf(demo_pdf(), "ORDER\n123")
+        reference_label_pdf(demo_pdf(), "ORDER\n123")
+
+
+@pytest.mark.parametrize("value", [None, "", "   "])
+def test_missing_platform_reference_is_explicit(value):
+    result = PdfReader(io.BytesIO(reference_label_pdf(demo_pdf(), value)))
+    assert "Platform Reference Number: N/A" in result.pages[0].extract_text()

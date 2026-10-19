@@ -476,7 +476,7 @@ async function loadHistory(reset = false) {
       for (const value of [row.mode.toUpperCase(), row.state, row.provider_code, row.tracking_number || '—', row.charge_minor == null ? 'Not recorded' : `${(row.charge_minor / 100).toFixed(2)} ${row.currency}`, row.error_code || '—']) message(tr, value, 'td');
       const links = message(tr, '', 'td');
       if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
-        for (const [kind, title] of [['print', 'Label PDF / thermal print (Order #)'], ['original', 'Original carrier PDF'], ['letter', 'Letter PDF (office printer)']]) {
+        for (const [kind, title] of [['print', 'Label PDF / thermal print (Platform Reference)'], ['original', 'Original carrier PDF'], ['letter', 'Letter PDF (office printer)']]) {
           const link = message(links, title, 'a');
           link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`;
           link.target = '_blank'; link.rel = 'noopener';
@@ -675,7 +675,7 @@ async function loadReview(reset = true) {
       }
       const pdf = message(tr, '', 'td');
       if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
-        for (const [kind, title] of [['print', 'Label PDF / thermal print (Order #)'], ['original', 'Original carrier PDF']]) {
+        for (const [kind, title] of [['print', 'Label PDF / thermal print (Platform Reference)'], ['original', 'Original carrier PDF']]) {
           const link = message(pdf, title, 'a');
           link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`;
           link.target = '_blank';

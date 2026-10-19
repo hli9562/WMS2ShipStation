@@ -208,10 +208,11 @@ and do not require ShipStation credentials.
 
 **History** displays labels and attempts in a table with tracking, charges,
 exceptions, and thermal/Letter/original PDF links. The thermal print and Letter
-versions add `Order #: <WMS Order Number>` in verified blank space at the bottom
+versions add `Platform Reference Number: <Platform reference>` in verified blank space at the bottom
 of each page, without resizing the carrier artwork or barcodes. Existing labels
-also receive the message on reprint; no new postage is purchased. If the order
-number is too long or there is no safe blank area, printing returns an error and
+also receive the platform reference on reprint; no new postage is purchased.
+A missing or blank platform reference is displayed as `N/A`. If the platform
+reference is too long or there is no safe blank area, printing returns an error and
 the **Original carrier PDF** link remains available. The original PDF is stored
 unchanged. This is a local print annotation, not a ShipStation account message setting.
 Search across order/platform

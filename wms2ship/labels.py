@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from pypdf import PdfReader, PdfWriter, Transformation
 from sqlalchemy import text
 
-from wms2ship.label_print import order_label_pdf
+from wms2ship.label_print import reference_label_pdf
 from wms2ship.providers import provider_mode
 from wms2ship.purchases import event, now, store_pdf
 
@@ -93,9 +93,9 @@ def label_pdf(
             raise HTTPException(404, "Label not found.")
         if status in ("pending", "uncertain", "voided"):
             raise HTTPException(409, "This label is voided or its void outcome needs verification.")
-        order_number = db.execute(
+        platform_reference = db.execute(
             text(
-                "SELECT o.wms_order_no FROM labels l "
+                "SELECT o.platform_reference FROM labels l "
                 "JOIN label_attempts a ON a.id=l.attempt_id "
                 "JOIN orders o ON o.id=a.order_id WHERE l.id=:id"
             ),
@@ -104,7 +104,7 @@ def label_pdf(
     if kind in ("print", "letter"):
         original = read_artifact(settings, artifact(engine, label_id, "original"))
         try:
-            data = order_label_pdf(original, order_number)
+            data = reference_label_pdf(original, platform_reference)
             if kind == "letter":
                 data = letter_pdf(data)
         except ValueError as exc:

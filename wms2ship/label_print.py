@@ -1,4 +1,4 @@
-"""Add a local order reference without resizing or covering carrier artwork."""
+"""Add the platform reference number without resizing or covering carrier artwork."""
 
 import io
 import math
@@ -13,10 +13,11 @@ from reportlab.pdfgen.canvas import Canvas
 _render_lock = threading.Lock()
 
 
-def order_label_pdf(original: bytes, order_number: str) -> bytes:
-    text = f"Order #: {order_number}"
-    if not order_number or any(ord(c) < 32 or ord(c) > 126 for c in order_number):
-        raise ValueError("Order number must contain printable English letters/numbers.")
+def reference_label_pdf(original: bytes, platform_reference: str | None) -> bytes:
+    reference = (platform_reference or "").strip() or "N/A"
+    text = f"Platform Reference Number: {reference}"
+    if any(ord(c) < 32 or ord(c) > 126 for c in reference):
+        raise ValueError("Platform reference must contain printable English letters/numbers.")
     reader = PdfReader(io.BytesIO(original), strict=True)
     if reader.is_encrypted or not 1 <= len(reader.pages) <= 20:
         raise ValueError("Use an unencrypted PDF with 1-20 pages.")
@@ -37,7 +38,7 @@ def order_label_pdf(original: bytes, order_number: str) -> bytes:
                 raise ValueError("Invalid page size.")
             font_size = min(10, (width - 64) / stringWidth(text, "Helvetica-Bold", 1))
             if font_size < 7:
-                raise ValueError("Order number is too long to fit legibly on this label.")
+                raise ValueError("Platform reference is too long to fit legibly on this label.")
             text_width = stringWidth(text, "Helvetica-Bold", font_size)
             pdf_page = document[index]
             bitmap = pdf_page.render(scale=3)
@@ -61,7 +62,7 @@ def order_label_pdf(original: bytes, order_number: str) -> bytes:
                         break
                 if position is None:
                     raise ValueError(
-                        "No safe blank area for the order number. Use the original PDF."
+                        "No safe blank area for the platform reference. Use the original PDF."
                     )
             finally:
                 bitmap.close()
