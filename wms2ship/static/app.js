@@ -213,9 +213,11 @@ const packageUnits = [
   ['height_mm', 'Height (in)', 25.4]
 ];
 function updateCreateLabel() {
-  document.querySelector('#create-label').disabled = !shipmentReady || labelRequestInFlight;
+  document.querySelector('#create-label').disabled = !shipmentReady || labelRequestInFlight || !ratePurchaseAllowed();
+  updateRatePurchaseText();
 }
 function scheduleReadiness() {
+  checkRateChanges();
   const revision = ++readinessRevision;
   clearTimeout(readinessTimer);
   shipmentReady = false;
@@ -232,7 +234,7 @@ function scheduleReadiness() {
       if (revision !== readinessRevision) return;
       target.replaceChildren();
       shipmentReady = result.valid;
-      if (result.valid) message(target, result.mode === 'live' ? 'Ready to buy a shipping label. Your carrier account will be charged.' : result.mode === 'test' ? 'Ready to create a test label.' : 'Ready to create a simulated label.');
+      if (result.valid) message(target, result.mode === 'live' ? (ratePurchaseAllowed() ? 'Ready to buy a shipping label. Your carrier account will be charged.' : 'Shipping details complete. Compare rates and select a service before buying.') : result.mode === 'test' ? 'Ready to create a test label.' : 'Ready to create a simulated label.');
       for (const issue of result.issues) message(target, `${issue.field}: ${issue.message}`);
     } catch (error) {
       if (revision !== readinessRevision) return;
@@ -301,6 +303,7 @@ async function showConfiguration(order) {
   await contactsReady;
   await workspaceSettingsReady;
   currentOrder = order;
+  resetRateComparison();
   catalogLoaded = false;
   scheduleReadiness();
   const preview = { ...order, packages: order.packages.map(packageData => {
@@ -384,6 +387,17 @@ async function showConfiguration(order) {
       options(carrierSelect, catalog.carriers, catalog.carriers.some(c => c.code === savedCarrier) ? savedCarrier : defaultCarrier);
       updateCarrier(restore);
       carrierSelect.onchange = () => updateCarrier(false);
+      applyComparedRate = rate => {
+        const carrier = catalog.carriers.find(c => c.code === rate.carrier_code);
+        const scope = order.recipient.country === 'CA' ? 'international' : 'domestic';
+        const services = (carrier?.services || []).filter(s => s[scope] !== false);
+        const packages = (carrier?.packages || []).filter(p => p[scope] !== false);
+        if (!services.some(s => s.code === rate.service_code) || !packages.some(p => p.code === rate.package_code)) throw new Error('Service is no longer available. Reopen this order.');
+        options(carrierSelect, catalog.carriers, rate.carrier_code);
+        updateCarrier(false);
+        options(serviceSelect, services, rate.service_code);
+        options(packageSelect, packages, rate.package_code);
+      };
       catalogLoaded = true;
       scheduleReadiness();
     } catch (error) { document.querySelector('#validation-result').textContent = error.message; }
@@ -480,14 +494,14 @@ document.querySelector('#configuration-form').addEventListener('change', schedul
 // Keep the request token until success/failure is known; an uncertain request must not be repurchased.
 const purchaseTokens = new Map();
 document.querySelector('#create-label').addEventListener('click', async event => {
-  if (!currentOrder || labelRequestInFlight || !shipmentReady) return;
+  if (!currentOrder || labelRequestInFlight || !shipmentReady || !ratePurchaseAllowed()) return;
   labelRequestInFlight = true;
   const button = event.currentTarget;
   button.disabled = true;
   const target = document.querySelector('#purchase-result');
   try {
     const selected = formValue('shipping.provider');
-    if (selected === 'shipstation' && !window.confirm(`Buy a real shipping label for order ${currentOrder.wms_order_no}? This charges your connected carrier account.`)) return;
+    if (selected === 'shipstation' && !window.confirm(`Buy a real shipping label for order ${currentOrder.wms_order_no}? ${selectedRate ? `Selected: ${selectedRate.service_name}, estimated ${rateMoney(selectedRate.total_minor)} USD (excludes insurance and add-ons). ` : ''}This charges your connected carrier account; actual cost may differ.`)) return;
     const order = await saveConfiguration();
     const key = `${order.id}:${order.version}`;
     if (!purchaseTokens.has(key)) purchaseTokens.set(key, crypto.randomUUID());

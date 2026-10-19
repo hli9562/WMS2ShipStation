@@ -1,0 +1,115 @@
+let rateRevision = 0;
+let rateFingerprint = null;
+let selectedRate = null;
+let rateExpires = 0;
+let rateExpiryTimer;
+let applyComparedRate = null;
+let rateBusy = false;
+const rateMoney = value => (value / 100).toLocaleString('en-US', {style: 'currency', currency: 'USD'});
+function rateFormFingerprint() {
+  return JSON.stringify({order: currentOrder?.id, config: configurationPayload(), scope: document.querySelector('#rate-scope').value});
+}
+function ratePurchaseAllowed() {
+  if (formValue('shipping.provider') !== 'shipstation') return !rateBusy;
+  return !!selectedRate && Date.now() < rateExpires && rateFingerprint === rateFormFingerprint() && !rateBusy;
+}
+function updateRatePurchaseText() {
+  const button = document.querySelector('#create-label');
+  if (formValue('shipping.provider') === 'shipstation') {
+    button.textContent = selectedRate ? `Buy shipping label · est. ${rateMoney(selectedRate.total_minor)}` : 'Buy shipping label';
+  }
+}
+function resetRateComparison() {
+  ++rateRevision;
+  clearTimeout(rateExpiryTimer);
+  rateFingerprint = null; selectedRate = null; rateExpires = 0; rateBusy = false;
+  applyComparedRate = null;
+  document.querySelector('#rate-scope').value = 'standard';
+  document.querySelector('#rates-status').textContent = 'Compare rates and select a service before buying a live label.';
+  document.querySelector('#rates-warnings').replaceChildren();
+  document.querySelector('#rates-table').hidden = true;
+  document.querySelector('#rates-table tbody').replaceChildren();
+  document.querySelector('#rate-selection').textContent = '';
+  document.querySelector('#compare-rates').disabled = false;
+}
+function invalidateRates(reason) {
+  ++rateRevision;
+  clearTimeout(rateExpiryTimer);
+  rateFingerprint = null; selectedRate = null; rateExpires = 0; rateBusy = false;
+  document.querySelector('#rates-table').hidden = true;
+  document.querySelector('#rate-selection').textContent = '';
+  document.querySelector('#rates-warnings').replaceChildren();
+  document.querySelector('#rates-status').textContent = reason;
+  document.querySelector('#compare-rates').disabled = false;
+  updateCreateLabel();
+}
+function checkRateChanges() {
+  if (rateFingerprint && rateFingerprint !== rateFormFingerprint()) invalidateRates('Shipping details changed. Compare rates again.');
+}
+document.querySelector('#rate-scope').addEventListener('change', checkRateChanges);
+document.querySelector('#compare-rates').addEventListener('click', async () => {
+  if (!currentOrder || labelRequestInFlight) return;
+  if (!catalogLoaded) {
+    document.querySelector('#rates-status').textContent = 'Carrier choices are unavailable. Check the connection error above, then reopen this order.';
+    return;
+  }
+  invalidateRates('Comparing prices…');
+  const revision = rateRevision;
+  const orderId = currentOrder.id;
+  rateFingerprint = rateFormFingerprint();
+  rateBusy = true;
+  document.querySelector('#compare-rates').disabled = true;
+  updateCreateLabel();
+  try {
+    const result = await api(`/api/orders/${orderId}/rates`, {method: 'POST',
+      headers: {'X-CSRF-Token': csrf, 'Content-Type': 'application/json'},
+      body: JSON.stringify({...configurationPayload(), scope: document.querySelector('#rate-scope').value})});
+    if (revision !== rateRevision || rateFingerprint !== rateFormFingerprint()) return;
+    rateExpires = Date.now() + result.valid_for_seconds * 1000;
+    document.querySelector('#rate-note').textContent = result.note;
+    const warningBox = document.querySelector('#rates-warnings');
+    for (const warning of result.warnings) message(warningBox, warning);
+    document.querySelector('#rates-status').textContent = result.rates.length
+      ? `${result.rates.length} estimates · ${result.partial ? 'Some carriers unavailable · ' : ''}checked ${new Date(result.quoted_at).toLocaleTimeString()} · refresh after 5 minutes${result.mode === 'test' ? ' · USPS test mode' : ''}`
+      : 'No quotes available. Review the details below and try again.';
+    const body = document.querySelector('#rates-table tbody');
+    body.replaceChildren();
+    document.querySelector('#rates-table').hidden = !result.rates.length;
+    result.rates.forEach((rate, index) => {
+      const tr = message(body, '', 'tr');
+      message(tr, rate.carrier_name, 'td');
+      const service = message(tr, rate.service_name, 'td');
+      message(service, rate.package_name, 'small');
+      message(tr, rateMoney(rate.shipment_minor), 'td');
+      message(tr, rateMoney(rate.other_minor), 'td');
+      const total = message(tr, rateMoney(rate.total_minor), 'td');
+      if (rate.total_minor === result.rates[0].total_minor) message(total, 'Lowest returned', 'small');
+      const choose = message(message(tr, '', 'td'), 'Select', 'button');
+      choose.type = 'button';
+      choose.setAttribute('aria-label', `Select ${rate.service_name} ${rateMoney(rate.total_minor)}`);
+      choose.addEventListener('click', () => {
+        if (Date.now() >= rateExpires || rateFingerprint !== rateFormFingerprint()) {
+          invalidateRates('Quotes expired or details changed. Compare rates again.'); return;
+        }
+        try {
+          if (!applyComparedRate) throw new Error('Carrier choices are unavailable. Reopen this order.');
+          applyComparedRate(rate);
+          selectedRate = rate;
+          rateFingerprint = rateFormFingerprint();
+          body.querySelectorAll('tr').forEach((row, i) => row.classList.toggle('selected-rate', i === index));
+          document.querySelector('#rate-selection').textContent = `Selected: ${rate.carrier_name} / ${rate.service_name} · estimate ${rateMoney(rate.total_minor)} USD. Review the shipping options above, then buy the label.`;
+          scheduleReadiness();
+        } catch (error) { invalidateRates(error.message); }
+      });
+    });
+    rateExpiryTimer = setTimeout(() => invalidateRates('Quotes expired. Compare rates again before buying.'), result.valid_for_seconds * 1000);
+  } catch (error) {
+    if (revision !== rateRevision) return;
+    rateFingerprint = null;
+    document.querySelector('#rates-status').textContent = error.message;
+  } finally {
+    if (revision === rateRevision) {
+      rateBusy = false; document.querySelector('#compare-rates').disabled = false; updateCreateLabel();
+    }
+  }
+});

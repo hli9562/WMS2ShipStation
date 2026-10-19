@@ -337,3 +337,25 @@ Actual size / 100%, with no margins. This combines existing labels without buyin
 simulation and test labels remain invalid for shipping. Removed or unavailable labels fail the
 whole batch with an error instead of silently omitting pages. Each page retains its Platform
 Reference Number. The footer shows the release version and date for comparing employee installs.
+
+### Compare Rates before purchasing
+
+In Shipping details, complete the package measurements, address type and delivery confirmation,
+then choose **Compare Rates**. Standard parcel compares the `package` type on the connected primary
+carrier accounts; carriers without that compatible package are listed as unavailable. For carrier
+boxes or Flat Rate packaging, select the carrier/package in Shipping options and use **Selected
+carrier and package type**. USPS test mode only compares USPS services.
+
+The table sorts the returned shipment cost plus `otherCost`, in USD, and marks the lowest returned
+estimate. Select a row to fill Carrier, Service and Package type. The live purchase button then
+shows the estimate; normal purchase validation must also pass. Edits to the draft or comparison
+scope invalidate quotes, as does five minutes elapsed. The UI requires a current selected quote
+before a live purchase. The existing purchase API and duplicate-purchase guards are unchanged.
+
+Rate lookup uses ShipStation V1 `/shipments/getrates`; it does not save the order or buy postage.
+Insurance, selected add-ons, duties/taxes, ship-date-specific pricing and later carrier adjustments
+are not included in the estimate. This endpoint does not supply delivery estimates. Actual charges
+are recorded after purchase. Carrier quote errors remain visible beside successful results;
+missing or invalid prices are never presented as zero. Authentication errors require active V1
+credentials and API account access. Documentation:
+https://www.shipstation.com/docs/api/shipments/get-rates/

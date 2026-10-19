@@ -18,6 +18,7 @@ from wms2ship.import_routes import router as import_router
 from wms2ship.labels import router as label_router
 from wms2ship.purchases import recover_interrupted
 from wms2ship.purchases import router as purchase_router
+from wms2ship.rates import router as rate_router
 from wms2ship.reports import router as review_router
 from wms2ship.sample import sample_workbook
 from wms2ship.shipstation import ProviderUnavailable
@@ -64,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(carrier_fee_router)
     app.include_router(purchase_router)
     app.include_router(label_router)
+    app.include_router(rate_router)
     app.include_router(void_router)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     templates = Jinja2Templates(directory=str(ROOT / "templates"))
@@ -124,7 +126,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             name="index.html",
             context={
                 "csrf": request.app.state.csrf_token,
-                "version": "2026.10.19.1",
+                "version": "2026.10.19.2",
                 "release_date": "2026-10-19",
             },
         )

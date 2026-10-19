@@ -8,6 +8,7 @@
   <script src="/static/folder-inbox.js" defer></script>
   <script src="/static/carrier-fees.js" defer></script>
   <script src="/static/workspace-settings.js" defer></script>
+  <script src="/static/rates.js" defer></script>
   <title>Apex · WMS2ShipStation</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -115,6 +116,20 @@
             <div id="customs-fields" class="fields"></div>
           </div>
         </form>
+        <section class="rates-card" aria-labelledby="rates-heading">
+          <h3 id="rates-heading">Compare Rates</h3>
+          <p>Check package measurements and delivery confirmation above, then compare shipping prices before buying.</p>
+          <div class="inbox-actions">
+            <label>Compare<select id="rate-scope"><option value="standard">Standard parcel · all available carriers</option><option value="selected">Selected carrier and package type</option></select></label>
+            <button type="button" id="compare-rates">Compare Rates</button>
+          </div>
+          <p class="field-note">Standard parcel compares your own packaging. For carrier boxes or Flat Rate packaging, choose the carrier and package above, then use selected carrier/package comparison.</p>
+          <p id="rates-status" role="status" aria-live="polite">Choose shipment details to compare rates.</p>
+          <div id="rates-warnings" role="status"></div>
+          <div class="table-scroll"><table id="rates-table" hidden><caption>Shipping estimates · USD · lowest returned price first</caption><thead><tr><th>Carrier</th><th>Service / Package</th><th>Shipping</th><th>Other charges</th><th>Estimate</th><th>Select</th></tr></thead><tbody></tbody></table></div>
+          <p id="rate-selection" role="status"></p>
+          <p id="rate-note" class="field-note">Insurance, add-ons, duties/taxes and later adjustments are not included. Actual charges may differ.</p>
+        </section>
         <div id="purchase-result" role="status" aria-live="polite"></div>
         <details><summary>Imported data</summary><pre id="order-preview"></pre></details>
       </section>

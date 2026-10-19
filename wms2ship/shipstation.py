@@ -46,15 +46,8 @@ def address(value, residential=False):
     }
 
 
-def build_payload(snapshot):
-    shipping = snapshot["shipping"]
-    package = snapshot["packages"][0]
-    payload = {
-        "carrierCode": shipping["carrier_code"],
-        "serviceCode": shipping["service_code"],
-        "packageCode": shipping["package_code"],
-        "shipDate": shipping["ship_date"],
-        "confirmation": shipping["confirmation"],
+def package_fields(package):
+    return {
         "weight": {
             "value": math.ceil(package.get("weight_oz") or package["weight_g"] / 28.349523125),
             "units": "ounces",
@@ -66,6 +59,19 @@ def build_payload(snapshot):
                 for key in ("length", "width", "height")
             },
         },
+    }
+
+
+def build_payload(snapshot):
+    shipping = snapshot["shipping"]
+    package = snapshot["packages"][0]
+    payload = {
+        "carrierCode": shipping["carrier_code"],
+        "serviceCode": shipping["service_code"],
+        "packageCode": shipping["package_code"],
+        "shipDate": shipping["ship_date"],
+        "confirmation": shipping["confirmation"],
+        **package_fields(package),
         "shipFrom": address(snapshot["origin"]),
         "shipTo": address(snapshot["recipient"], shipping["residential"]),
         "testLabel": False,
@@ -113,6 +119,7 @@ class ShipStationProvider:
     allowed_carrier_codes = None
 
     def __init__(self, key, secret, enable_live=False, transport=None, lookup_cache=None):
+        self.rate_query_lock = Lock()
         self.enable_live = enable_live
         self.lookup_cache = lookup_cache if lookup_cache is not None else LookupCache()
         self.client = httpx.Client(
@@ -218,6 +225,42 @@ class ShipStationProvider:
             "carriers": carriers,
             "live_purchase_enabled": self.enable_live,
         }
+
+    def get_rates(self, body):
+        cache = self.lookup_cache
+        with cache.lock:
+            if monotonic() < cache.blocked_until:
+                raise ProviderUnavailable(cache.blocked_message)
+        try:
+            response = self.client.post("/shipments/getrates", json=body, timeout=15)
+        except httpx.HTTPError:
+            raise ProviderUnavailable(
+                "Rate request timed out or could not connect. Try again."
+            ) from None
+        if response.status_code == 429:
+            with cache.lock:
+                cache.blocked_until = monotonic() + 60
+                cache.blocked_message = (
+                    "ShipStation rate limit reached (HTTP 429). Wait 60 seconds."
+                )
+            raise ProviderUnavailable(cache.blocked_message)
+        if response.status_code in (401, 403):
+            raise ProviderUnavailable(
+                f"ShipStation denied rates access (HTTP {response.status_code}). "
+                "Check V1 credentials and API access in Settings."
+            )
+        if not response.is_success:
+            raise ProviderUnavailable(
+                f"Rate request returned HTTP {response.status_code}. "
+                "Check package and destination details."
+            )
+        try:
+            data = response.json()
+            if not isinstance(data, list):
+                raise ValueError()
+        except ValueError:
+            raise ProviderUnavailable("ShipStation returned invalid rate data.") from None
+        return data
 
     def create_label(self, snapshot, attempt_id):
         if not self.enable_live:

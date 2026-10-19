@@ -231,3 +231,10 @@ caption { padding: 6px 0; }
   #panel-import { grid-template-columns: 1fr; }
   .import-tools { grid-column: 1; grid-row: 2; border-left: 0; border-top: 1px solid var(--border); padding: 12px 0 0; }
 }
+
+.rates-card { border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; margin-top: 16px; padding: 14px; }
+.rates-card select { display: block; padding: 8px; margin-top: 5px; max-width: 100%; }
+#rates-table small { display: block; color: #53647b; margin-top: 4px; }
+#rates-table .selected-rate { background: #e6f2e9; }
+#rates-warnings { color: #8c350f; }
+#rate-selection { font-weight: 600; }
