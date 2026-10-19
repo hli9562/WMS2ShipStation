@@ -44,7 +44,7 @@ def account_client(tmp_path, handler):
         yield client
 
 
-def test_account_fees_without_local_orders_and_four_column_excel(tmp_path):
+def test_account_fees_without_local_orders_and_carrier_column_excel(tmp_path):
     shipments = [
         shipment(1),
         shipment(2, shipmentCost=20.02),
@@ -77,19 +77,23 @@ def test_account_fees_without_local_orders_and_four_column_excel(tmp_path):
         book = load_workbook(io.BytesIO(response.content))
         assert book.sheetnames == ["Shipping Fees"]
         sheet = book.active
-        assert sheet.max_column == 4 and sheet.max_row == 6
+        assert sheet.max_column == 5 and sheet.max_row == 6
         assert list(next(sheet.values)) == [
             "Order #",
             "Tracking #",
             "Recipient",
+            "Carrier",
             "Shipping Fee (USD)",
         ]
         by_order = {row[0].value: row for row in list(sheet.rows)[1:-1]}
-        assert by_order["ORDER-3"][3].value is None
+        assert by_order["ORDER-3"][4].value is None
         assert by_order["=ZERO"][0].data_type == "s"
-        assert by_order["=ZERO"][3].value == 0
+        assert by_order["=ZERO"][4].value == 0
         assert by_order["ORDER-1"][1].value == "000123456"
-        assert sheet["D6"].value == 30.03 and "incomplete" in sheet["A6"].value
+        assert by_order["ORDER-1"][3].value == "usps"
+        assert sheet.auto_filter.ref == "A1:E5"
+        assert by_order["ORDER-1"][4].number_format == '"$"#,##0.00'
+        assert sheet["E6"].value == 30.03 and "incomplete" in sheet["A6"].value
         assert len(calls) == 1  # Page and Excel reuse the same complete account snapshot.
         assert client.get("/api/orders").json() == []
         assert client.get("/api/carrier-fees?start=2026-10-02&end=2026-10-01").status_code == 422
@@ -119,7 +123,7 @@ def test_insurance_pagination_and_export_total(tmp_path):
             io.BytesIO(client.get("/api/carrier-fees/report.xlsx" + query).content)
         )
         assert book.active.max_row == 107
-        assert book.active["A107"].value == "TOTAL" and book.active["D107"].value == 12.6
+        assert book.active["A107"].value == "TOTAL" and book.active["E107"].value == 12.6
         assert len(calls) == 2
 
 

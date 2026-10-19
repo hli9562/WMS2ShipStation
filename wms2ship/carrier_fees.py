@@ -135,32 +135,33 @@ def fee_workbook(rows, summary, selected):
     book = Workbook()
     sheet = book.active
     sheet.title = "Shipping Fees"
-    sheet.append(["Order #", "Tracking #", "Recipient", "Shipping Fee (USD)"])
+    sheet.append(["Order #", "Tracking #", "Recipient", "Carrier", "Shipping Fee (USD)"])
     for row in rows:
         sheet.append(
             [
                 row["wms_order_no"],
                 row["tracking_number"],
                 row["recipient"],
+                row["carrier"],
                 None if row["charge_minor"] is None else Decimal(row["charge_minor"]) / 100,
             ]
         )
-        sheet.cell(sheet.max_row, 4).number_format = '"$"#,##0.00'
+        sheet.cell(sheet.max_row, 5).number_format = '"$"#,##0.00'
     total = sum(r["charge_minor"] for r in rows if r["charge_minor"] is not None)
     title = (
         "TOTAL"
         if not summary["missing_fees"]
         else (f"TOTAL (incomplete: {summary['missing_fees']} missing fees)")
     )
-    sheet.append([title, None, None, Decimal(total) / 100])
-    sheet.cell(sheet.max_row, 4).number_format = '"$"#,##0.00'
+    sheet.append([title, None, None, None, Decimal(total) / 100])
+    sheet.cell(sheet.max_row, 5).number_format = '"$"#,##0.00'
     for row in (sheet[1], sheet[sheet.max_row]):
         for cell in row:
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill("solid", fgColor="082E58")
     sheet.freeze_panes = "A2"
-    sheet.auto_filter.ref = f"A1:D{max(1, sheet.max_row - 1)}"
-    for column, width in zip("ABCD", (32, 32, 35, 25), strict=True):
+    sheet.auto_filter.ref = f"A1:E{max(1, sheet.max_row - 1)}"
+    for column, width in zip("ABCDE", (32, 32, 35, 22, 25), strict=True):
         sheet.column_dimensions[column].width = width
     for row in sheet:
         for cell in row:

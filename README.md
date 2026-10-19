@@ -263,8 +263,8 @@ ShipStation website. It does not depend on orders imported into this app.
 Choose inclusive **From** and **Through** ship dates (the dates returned by
 ShipStation); the default is the current month through today.
 
-The page and Excel statement show exactly four detail fields: **Order #**,
-**Tracking #**, **Recipient**, and **Shipping Fee (USD)**. Excel has one sheet,
+The page shows **Order #**, **Tracking #**, **Recipient**, and **Shipping Fee (USD)**.
+The Excel statement also includes a **Carrier** column before the fee. Excel has one sheet,
 **Shipping Fees**, and a final **TOTAL** row. Fees equal `shipmentCost` plus
 `insuranceCost`, summed in integer cents. Missing fees are blank and totals are
 explicitly marked incomplete. ShipStation-voided shipments are excluded.
