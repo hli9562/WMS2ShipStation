@@ -65,7 +65,11 @@ async function loadFees(reset = true) {
     const details = document.querySelector('#fee-details tbody');
     for (const row of data.rows) {
       const tr = message(details, '', 'tr');
-      for (const value of [row.wms_order_no, row.tracking_number || '—', row.recipient || '—', row.carrier || '—', feeMoney(row.charge_minor, row.currency)]) message(tr, value, 'td');
+      for (const value of [row.wms_order_no, row.tracking_number || '—', row.recipient || '—']) message(tr, value, 'td');
+      const carrier = message(tr, '', 'td');
+      message(carrier, row.carrier_name || row.carrier || '—', 'strong');
+      message(carrier, row.service_name || row.service || 'Not recorded', 'small');
+      message(tr, feeMoney(row.charge_minor, row.currency), 'td');
     }
     feeOffset += data.rows.length;
     feeMore.hidden = feeOffset >= data.total;

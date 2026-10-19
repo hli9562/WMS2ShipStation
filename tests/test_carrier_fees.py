@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
+from wms2ship.carrier_fees import shipping_name
 from wms2ship.config import Settings
 from wms2ship.main import create_app
 from wms2ship.shipment_source import ShipmentSource
@@ -90,7 +91,9 @@ def test_account_fees_without_local_orders_and_carrier_column_excel(tmp_path):
         assert by_order["=ZERO"][0].data_type == "s"
         assert by_order["=ZERO"][4].value == 0
         assert by_order["ORDER-1"][1].value == "000123456"
-        assert by_order["ORDER-1"][3].value == "usps"
+        assert by_order["ORDER-1"][3].value == "USPS\nUSPS Ground Advantage"
+        assert by_order["ORDER-1"][3].alignment.wrap_text
+        assert sheet.row_dimensions[2].height == 32
         assert sheet.auto_filter.ref == "A1:E5"
         assert by_order["ORDER-1"][4].number_format == '"$"#,##0.00'
         assert sheet["E6"].value == 30.03 and "incomplete" in sheet["A6"].value
@@ -176,3 +179,29 @@ def test_missing_configuration_is_explicit_and_empty_account_has_zero_total(tmp_
     ) as client:
         data = client.get("/api/carrier-fees").json()
         assert data["total"] == 0 and data["summary"]["missing_fees"] == 0
+
+
+@pytest.mark.parametrize(
+    "code,name",
+    [
+        ("usps_ground_advantage", "USPS Ground Advantage"),
+        ("ups_2nd_day_air", "UPS 2nd Day Air"),
+        ("fedex_2day", "FedEx 2Day"),
+    ],
+)
+def test_specific_service_names(code, name):
+    assert shipping_name(code) == name
+
+
+def test_api_supplied_service_name_is_preserved(tmp_path):
+    data = shipment(serviceName="UPS 2nd Day Air A.M.", carrierName="UPS")
+    with account_client(
+        tmp_path, lambda request: httpx.Response(200, json={"shipments": [data], "total": 1})
+    ) as client:
+        query = "?start=2026-10-01&end=2026-10-01"
+        row = client.get("/api/carrier-fees" + query).json()["rows"][0]
+        assert row["service_name"] == "UPS 2nd Day Air A.M."
+        book = load_workbook(
+            io.BytesIO(client.get("/api/carrier-fees/report.xlsx" + query).content)
+        )
+        assert book.active["D2"].value == "UPS\nUPS 2nd Day Air A.M."

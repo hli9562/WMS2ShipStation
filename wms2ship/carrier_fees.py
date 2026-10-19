@@ -38,6 +38,25 @@ def amount_minor(value):
         return None
 
 
+def shipping_name(code):
+    """Readable fallback for API codes when ShipStation supplies no display name."""
+    if not code:
+        return "Not recorded"
+    names = {
+        "usps": "USPS",
+        "ups": "UPS",
+        "fedex": "FedEx",
+        "dhl": "DHL",
+        "2day": "2Day",
+        "3day": "3Day",
+        "2nd": "2nd",
+        "3rd": "3rd",
+    }
+    if code == "stamps_com":
+        return "Stamps.com"
+    return " ".join(names.get(part.lower(), part.title()) for part in code.split("_"))
+
+
 def fee_data(request, selected):
     source = request.app.state.shipment_source
     if source is None:
@@ -79,6 +98,8 @@ def fee_data(request, selected):
             ship_date=day.isoformat(),
             carrier=shipment.get("carrierCode") or "Not recorded",
             service=shipment.get("serviceCode") or "Not recorded",
+            carrier_name=shipment.get("carrierName") or shipping_name(shipment.get("carrierCode")),
+            service_name=shipment.get("serviceName") or shipping_name(shipment.get("serviceCode")),
             tracking_number=shipment.get("trackingNumber") or "",
             recipient=recipient.get("name") or "",
             country=recipient.get("country") or "",
@@ -142,11 +163,12 @@ def fee_workbook(rows, summary, selected):
                 row["wms_order_no"],
                 row["tracking_number"],
                 row["recipient"],
-                row["carrier"],
+                f"{row['carrier_name']}\n{row['service_name']}",
                 None if row["charge_minor"] is None else Decimal(row["charge_minor"]) / 100,
             ]
         )
         sheet.cell(sheet.max_row, 5).number_format = '"$"#,##0.00'
+        sheet.row_dimensions[sheet.max_row].height = 32
     total = sum(r["charge_minor"] for r in rows if r["charge_minor"] is not None)
     title = (
         "TOTAL"
@@ -161,7 +183,7 @@ def fee_workbook(rows, summary, selected):
             cell.fill = PatternFill("solid", fgColor="082E58")
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = f"A1:E{max(1, sheet.max_row - 1)}"
-    for column, width in zip("ABCDE", (32, 32, 35, 22, 25), strict=True):
+    for column, width in zip("ABCDE", (32, 32, 35, 34, 25), strict=True):
         sheet.column_dimensions[column].width = width
     for row in sheet:
         for cell in row:

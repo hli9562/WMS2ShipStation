@@ -211,3 +211,5 @@ caption { padding: 6px 0; }
 
 #fee-status.fee-error { border-left: 4px solid #a83225; padding: 12px; background: #fff0ed; color: #84231a; }
 #fee-details td:first-child, #fee-details td:nth-child(2) { white-space: nowrap; }
+#fee-details td:nth-child(4) strong, #fee-details td:nth-child(4) small { display: block; }
+#fee-details td:nth-child(4) small { margin-top: 4px; color: var(--muted); font-size: .8rem; }

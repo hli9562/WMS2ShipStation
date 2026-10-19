@@ -264,7 +264,10 @@ Choose inclusive **From** and **Through** ship dates (the dates returned by
 ShipStation); the default is the current month through today.
 
 The page and Excel statement show **Order #**, **Tracking #**, **Recipient**,
-**Carrier**, and **Shipping Fee (USD)**. Excel has one sheet,
+**Carrier**, and **Shipping Fee (USD)**. The **Carrier** cell displays the carrier with the specific shipping service on
+the next line (for example, **USPS Ground Advantage** or **UPS 2nd Day Air**),
+in both the webpage and Excel. API display names are preferred when supplied;
+otherwise codes are formatted into readable names. Excel has one sheet,
 **Shipping Fees**, and a final **TOTAL** row. Fees equal `shipmentCost` plus
 `insuranceCost`, summed in integer cents. Missing fees are blank and totals are
 explicitly marked incomplete. ShipStation-voided shipments are excluded.

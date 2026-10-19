@@ -164,7 +164,7 @@
       <p id="fee-warning" role="status" hidden></p>
       <details class="fee-notes"><summary>About this total</summary>
         <p>Source: ShipStation account shipments, refreshed at most once per minute for each date range. Shipping fee includes shipment cost and insurance cost. ShipStation-voided shipments are excluded. Later carrier billing adjustments are not included. External shipments marked as shipped without a ShipStation label are not returned by this API.</p>
-        <p>Excel contains Order #, Tracking #, Recipient, Carrier, Shipping Fee, and a final total row. Missing fees stay blank and make the total incomplete.</p>
+        <p>Excel contains Order #, Tracking #, Recipient, Carrier, Shipping Fee, and a final total row. Carrier shows the specific shipping service underneath, such as USPS Ground Advantage or UPS 2nd Day Air. Missing fees stay blank and make the total incomplete.</p>
       </details>
       <h3>Shipping fee details</h3>
       <div class="table-scroll fee-detail-scroll" tabindex="0" aria-label="Scrollable shipping fee details"><table id="fee-details"><caption>One row per ShipStation shipment</caption><thead><tr><th scope="col">Order #</th><th scope="col">Tracking #</th><th scope="col">Recipient</th><th scope="col">Carrier</th><th scope="col">Shipping Fee (USD)</th></tr></thead><tbody></tbody></table></div>
