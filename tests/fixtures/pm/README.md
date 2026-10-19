@@ -68,7 +68,7 @@ has its own data volume; you can reuse it for additional tests.
 4. **Complete shipping details → Create simulated label** (enabled automatically when ready). History
    should show **SIMULATION**, and the printable PDF must say it is not valid
    postage. Ordinary duplicate-purchase protection remains in place.
-5. Open **Manager review**, filter to Simulation, and download the Excel report.
-   Summary and Shipments sheets should match the filtered dashboard.
+5. Open `/api/review/report.xlsx?mode=simulation` to download the legacy simulation activity report.
+   Summary and Shipments sheets should match the local simulation activity in History.
 
 Record the filename, order ID, steps, and screenshot when reporting a problem.

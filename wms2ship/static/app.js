@@ -611,94 +611,6 @@ document.querySelector('#contact-form').addEventListener('submit', async event =
 editContact();
 const contactsReady = loadContacts().catch(error => { document.querySelector('#contact-status').textContent = error.message; });
 
-const reviewFields = document.querySelector('#review-filter-fields');
-field(reviewFields, 'start', 'Activity from (UTC)', '', null, 'date');
-field(reviewFields, 'end', 'Activity through (UTC)', '', null, 'date');
-field(reviewFields, 'search', 'Order, tracking, recipient, or shipper');
-field(reviewFields, 'state', 'Label status', 'all', ['all', 'not_started', 'prepared', 'sending', 'purchased', 'failed', 'uncertain', 'removed'].map(code => [code, code.replaceAll('_', ' ')]));
-field(reviewFields, 'mode', 'Postage mode', 'all', [['all', 'All'], ['live', 'Live'], ['simulation', 'Simulation'], ['test', 'USPS test labels'], ['unassigned', 'No attempt']]);
-let reviewQuery = new URLSearchParams();
-let reviewOffset = 0;
-let reviewBusy = false;
-const reviewColumns = [['wms_order_no', 'WMS order'], ['state', 'Label status'], ['mode', 'Mode'], ['void_status', 'Local label status'], ['created_at', 'Activity (UTC)'], ['shipper', 'Shipper'], ['recipient', 'Recipient'], ['country', 'Destination'], ['carrier', 'Carrier'], ['service', 'Service'], ['tracking_number', 'Tracking'], ['charge_minor', 'Charge'], ['error_code', 'Exception']];
-for (const [, title] of reviewColumns) {
-  const th = message(document.querySelector('#review-table thead tr'), title, 'th');
-  th.scope = 'col';
-}
-message(document.querySelector('#review-table thead tr'), 'Label PDF', 'th').scope = 'col';
-async function loadReview(reset = true) {
-  if (reviewBusy) return;
-  reviewBusy = true;
-  const target = document.querySelector('#review-status');
-  const submit = document.querySelector('#review-filters button[type="submit"]');
-  const more = document.querySelector('#review-more');
-  submit.disabled = true;
-  more.disabled = true;
-  target.textContent = 'Loading shipment review…';
-  try {
-    const query = reset ? new URLSearchParams(new FormData(document.querySelector('#review-filters'))) : new URLSearchParams(reviewQuery);
-    for (const [key, value] of [...query.entries()]) if (!value) query.delete(key);
-    query.set('offset', reset ? 0 : reviewOffset);
-    const data = await api(`/api/review?${query}`);
-    const body = document.querySelector('#review-table tbody');
-    if (reset) {
-      body.replaceChildren();
-      reviewOffset = 0;
-      query.delete('offset');
-      reviewQuery = query;
-      document.querySelector('#download-report').href = `/api/review/report.xlsx?${reviewQuery}`;
-      const summary = document.querySelector('#review-summary');
-      summary.replaceChildren();
-      for (const [label, value] of [['Orders', data.summary.orders], ['Label purchases', data.summary.purchased], ['Not started', data.summary.not_started], ['Exceptions', data.summary.exceptions]]) {
-        const card = message(summary, '', 'div');
-        message(card, value, 'strong');
-        message(card, label, 'span');
-      }
-      for (const charge of data.summary.charges) {
-        message(summary, `${charge.mode.toUpperCase()} · ${(charge.minor / 100).toFixed(2)} ${charge.currency}`, 'p');
-      }
-      if (data.summary.unknown_charges) message(summary, `${data.summary.unknown_charges} purchased label(s) have no recorded charge.`, 'p');
-      if (!data.total) {
-        const row = message(body, '', 'tr');
-        const cell = message(row, 'No shipments or orders match these filters.', 'td');
-        cell.colSpan = reviewColumns.length + 1;
-      }
-    }
-    for (const row of data.rows) {
-      const tr = message(body, '', 'tr');
-      for (const [key] of reviewColumns) {
-        let value = row[key] ?? '—';
-        if (key === 'charge_minor') value = row.charge_minor == null ? 'Not recorded' : `${(row.charge_minor / 100).toFixed(2)} ${row.currency}`;
-        if (key === 'void_status' && value === 'voided') value = 'Removed locally';
-        if (key === 'state') value = value.replaceAll('_', ' ');
-        message(tr, value || '—', 'td');
-      }
-      const pdf = message(tr, '', 'td');
-      if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
-        for (const [kind, title] of [['print', 'Label PDF / thermal print (Platform Reference)'], ['original', 'Original carrier PDF']]) {
-          const link = message(pdf, title, 'a');
-          link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`;
-          link.target = '_blank';
-          link.rel = 'noopener';
-        }
-      }
-      if (row.label_id) renderVoidAction(pdf, row);
-    }
-    reviewOffset += data.rows.length;
-    more.hidden = reviewOffset >= data.total;
-    target.textContent = `Showing ${reviewOffset} of ${data.total} records. Excel downloads all matching records, including those on later pages.`;
-  } catch (error) { target.textContent = error.message; }
-  finally { reviewBusy = false; submit.disabled = false; more.disabled = false; }
-}
-document.querySelector('#review-filters').addEventListener('submit', event => { event.preventDefault(); loadReview(true); });
-document.querySelector('#review-filters').addEventListener('change', () => {
-  document.querySelector('#review-status').textContent = 'Filters changed. Apply filters to update the dashboard and Excel report.';
-});
-document.querySelector('#review-more').onclick = () => loadReview(false);
-document.querySelector('#tab-review').addEventListener('click', () => loadReview(true));
-loadReview(true);
-
-
 function updateOriginSummary(collapse = false) {
   const value = key => document.querySelector('#configuration-form').elements.namedItem(`origin.${key}`)?.value.trim() || '';
   const lines = [
@@ -732,7 +644,6 @@ function renderVoidAction(container, row) {
       }
       await loadOrders();
       await loadHistory(true);
-      await loadReview(true);
     } catch (error) { window.alert(error.message); }
     finally { button.disabled = false; }
   };

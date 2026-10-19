@@ -141,20 +141,19 @@ previously saved orders. Shipper and return addresses still use the Katy, TX
 warehouse. Contacts are stored in the local database and included in backups;
 the new table is created automatically on application startup.
 
-### Manager shipment review and Excel reports
+### Legacy shipment review API
 
-Open **Manager review** to review orders without labels, label purchase attempts,
-tracking numbers, recorded charges, and exceptions. Filter by activity dates
-(inclusive, UTC), label status, postage mode, or order/tracking/contact search.
-Click **Apply filters / refresh**, then **Download Excel report** for a workbook
-with Summary and Shipments sheets containing all matching records across pages.
+The Manager review tab has been removed. Existing records and the read-only
+`/api/review` and `/api/review/report.xlsx` endpoints remain available for
+compatibility. Use **History** for local label activity and **Carrier Fee Summary**
+for account-wide shipping fees and customer billing exports.
 
 Each record is a label attempt or an order without attempts. Rejected retries
 remain visible; orders and label attempts have separate counts. Live and
 simulation charges are totaled separately by currency; missing charges remain
 unknown. Historical contact/carrier details come from the saved purchase
 snapshot. Purchasing a label does not establish dispatch or delivery status.
-The manager view uses the current shared full-access local workspace.
+These endpoints use the current shared full-access local workspace.
 
 See [ShipStation V1 shipping options](docs/SHIPSTATION_OPTIONS.md) for the
 supported choices, carrier restrictions, and official API references.
