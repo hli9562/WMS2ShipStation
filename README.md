@@ -254,6 +254,35 @@ kg/g/lb/oz weight; weight and each dimension are rounded up to whole oz/in value
 The same whole numbers are used in shipping forms and carrier requests. Older imported orders also
 display converted US measurements when opened.
 
+## Carrier Fee Summary
+
+The **Carrier Fee Summary** tab appears immediately before **Settings** and reads
+**the entire connected ShipStation account**, including labels purchased on the
+ShipStation website. It does not depend on orders imported into this app.
+Choose inclusive **From** and **Through** ship dates (the dates returned by
+ShipStation); the default is the current month through today.
+
+The page and Excel statement show exactly four detail fields: **Order #**,
+**Tracking #**, **Recipient**, and **Shipping Fee (USD)**. Excel has one sheet,
+**Shipping Fees**, and a final **TOTAL** row. Fees equal `shipmentCost` plus
+`insuranceCost`, summed in integer cents. Missing fees are blank and totals are
+explicitly marked incomplete. ShipStation-voided shipments are excluded.
+ShipStation's API excludes externally fulfilled orders without a ShipStation label;
+subsequent carrier billing adjustments are not included in the reported charges.
+
+This read-only integration calls V1 `GET /shipments` with `shipDateStart` and
+`shipDateEnd`. It reads all API pages, deduplicates shipment IDs, and rejects
+partial/changing datasets or ranges beyond the API's 10,000-result limit. Choose
+a shorter range for larger reports. A complete result is cached for 60 seconds
+so on-screen pagination and Excel can reuse it. No local shipping data is changed,
+and the report cannot purchase labels. Authentication, rate-limit, and API failures
+show explicit errors instead of a zero-dollar statement or partial total.
+
+The server needs active **V1 API Key and API Secret** credentials with account API
+access. Being logged into ShipStation in a browser does not authenticate this API.
+HTTP 401/403 requires checking credentials and account access in ShipStation's
+API Settings; credentials are configured locally in the server's env file.
+
 ## Manually remove a local label
 
 In **History** or **Shipment review**, click **Remove label** and confirm.

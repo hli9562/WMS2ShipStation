@@ -6,6 +6,7 @@
   <meta name="csrf-token" content="{{ csrf }}">
   <script src="/static/app.js" defer></script>
   <script src="/static/folder-inbox.js" defer></script>
+  <script src="/static/carrier-fees.js" defer></script>
   <title>Apex · WMS2ShipStation</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -26,6 +27,7 @@
       <button type="button" id="tab-orders" role="tab" aria-controls="panel-orders" aria-selected="false" tabindex="-1">Shipping details</button>
       <button type="button" id="tab-history" role="tab" aria-controls="panel-history" aria-selected="false" tabindex="-1">History</button>
       <button type="button" id="tab-review" role="tab" aria-controls="panel-review" aria-selected="false" tabindex="-1">Manager review</button>
+      <button type="button" id="tab-fees" role="tab" aria-controls="panel-fees" aria-selected="false" tabindex="-1">Carrier Fee Summary</button>
       <button type="button" id="tab-settings" role="tab" aria-controls="panel-settings" aria-selected="false" tabindex="-1">Settings</button>
     </div>
     <section id="panel-import" role="tabpanel" aria-labelledby="tab-import" tabindex="0">
@@ -142,6 +144,31 @@
       <p>Dates filter activity time in UTC. Each row is a label attempt or an order with no attempt. Failed retries remain visible.</p>
       <div class="table-scroll" tabindex="0" aria-label="Scrollable shipment review table"><table id="review-table"><caption>Shipment review results</caption><thead><tr></tr></thead><tbody></tbody></table></div>
       <button type="button" id="review-more" hidden>Load more results</button>
+    </section>
+    <section id="panel-fees" role="tabpanel" aria-labelledby="tab-fees" tabindex="0" hidden>
+      <h2>Carrier Fee Summary</h2>
+      <p>See total shipping fees across your entire ShipStation account, including labels purchased on the ShipStation website.</p>
+      <form id="fee-filters">
+        <div class="fields">
+          <label>From<input type="date" name="start" required></label>
+          <label>Through<input type="date" name="end" required></label>
+        </div>
+        <div class="fee-actions">
+          <button type="submit" id="fee-refresh">Generate summary</button>
+          <a id="download-fees" hidden>Download Excel statement</a>
+        </div>
+      </form>
+      <p class="field-note">Both dates are inclusive and filter the ship date reported by ShipStation. Voided shipments are excluded. Amounts are in USD.</p>
+      <p id="fee-status" role="status" aria-live="polite"></p>
+      <div id="fee-summary" class="review-summary"></div>
+      <p id="fee-warning" role="status" hidden></p>
+      <details class="fee-notes"><summary>About this total</summary>
+        <p>Source: ShipStation account shipments, refreshed at most once per minute for each date range. Shipping fee includes shipment cost and insurance cost. ShipStation-voided shipments are excluded. Later carrier billing adjustments are not included. External shipments marked as shipped without a ShipStation label are not returned by this API.</p>
+        <p>Excel contains only Order #, Tracking #, Recipient, Shipping Fee, and a final total row. Missing fees stay blank and make the total incomplete.</p>
+      </details>
+      <h3>Shipping fee details</h3>
+      <div class="table-scroll fee-detail-scroll" tabindex="0" aria-label="Scrollable shipping fee details"><table id="fee-details"><caption>One row per ShipStation shipment</caption><thead><tr><th scope="col">Order #</th><th scope="col">Tracking #</th><th scope="col">Recipient</th><th scope="col">Shipping Fee (USD)</th></tr></thead><tbody></tbody></table></div>
+      <button type="button" id="fee-more" hidden>Load more orders</button>
     </section>
     <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
       <h2>Shipper contacts</h2>

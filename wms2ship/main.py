@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from wms2ship.carrier_fees import router as carrier_fee_router
 from wms2ship.config import Settings
 from wms2ship.configuration import router as configuration_router
 from wms2ship.contacts import router as contacts_router
@@ -20,6 +21,7 @@ from wms2ship.purchases import recover_interrupted
 from wms2ship.purchases import router as purchase_router
 from wms2ship.reports import router as review_router
 from wms2ship.sample import sample_workbook
+from wms2ship.shipment_source import ShipmentSource
 from wms2ship.shipstation import (
     ProviderUnavailable,
     ShipStationProvider,
@@ -42,6 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         recover_interrupted(app.state.engine)
         recover_interrupted_voids(app.state.engine)
         app.state.providers = {"fake": FakeProvider()}
+        app.state.shipment_source = None
         if (
             settings.shipstation_api_key.get_secret_value()
             and settings.shipstation_api_secret.get_secret_value()
@@ -50,6 +53,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 settings.shipstation_api_key.get_secret_value(),
                 settings.shipstation_api_secret.get_secret_value(),
                 settings.enable_live_purchase,
+            )
+            app.state.shipment_source = ShipmentSource(
+                settings.shipstation_api_key.get_secret_value(),
+                settings.shipstation_api_secret.get_secret_value(),
             )
 
         if "shipstation" in app.state.providers:
@@ -63,6 +70,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             yield
         finally:
+            if app.state.shipment_source:
+                app.state.shipment_source.close()
             for provider in app.state.providers.values():
                 if hasattr(provider, "close"):
                     provider.close()
@@ -74,6 +83,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(configuration_router)
     app.include_router(contacts_router)
     app.include_router(review_router)
+    app.include_router(carrier_fee_router)
     app.include_router(purchase_router)
     app.include_router(label_router)
     app.include_router(void_router)

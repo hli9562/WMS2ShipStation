@@ -190,6 +190,16 @@ caption { padding: 6px 0; }
 
 #shipping-fields > [data-field="shipping.carrier_code"] { grid-column: 1 / -1; }
 
+#fee-filters { max-width: 650px; }
+.fee-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+#fee-summary { margin: 12px 0; }
+#fee-warning { padding: 10px 12px; border-left: 4px solid var(--brand-gold); background: #fff8e9; }
+.fee-notes { margin: 12px 0 18px; font-size: .85rem; }
+#panel-fees h3 { margin-top: 20px; }
+.fee-detail-scroll { max-height: 60vh; overflow: auto; }
+#fee-details th { position: sticky; top: 0; z-index: 1; }
+#fee-details td:nth-child(4) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 .shipping-main { display: grid; gap: 10px; min-width: 0; }
 #package-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 700px) {
@@ -198,3 +208,6 @@ caption { padding: 6px 0; }
 @media (max-width: 400px) {
   #package-fields { grid-template-columns: 1fr; }
 }
+
+#fee-status.fee-error { border-left: 4px solid #a83225; padding: 12px; background: #fff0ed; color: #84231a; }
+#fee-details td:first-child, #fee-details td:nth-child(2) { white-space: nowrap; }
