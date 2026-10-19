@@ -326,3 +326,14 @@ New workspaces include Apex Tech / Apex Technology Distribution Inc,
 20436 Westfield Commerce Dr, Katy, TX 77494, US as the default shipper contact.
 No phone number is prefilled. Existing contacts/defaults are preserved on upgrade;
 the seeded contact remains editable in Settings and is not recreated after deletion.
+
+### Order search and batch printing
+
+WMS orders searches order number, platform reference, recipient name and tracking number across
+all imported orders. Status filters and 100-row pages help narrow the list. Selection resets
+when changing the search, status or page. Select up to 100 printable labels on the current page,
+choose **Open selected labels**, then open the generated PDF link. Print on 4 × 6 inch paper at
+Actual size / 100%, with no margins. This combines existing labels without buying postage;
+simulation and test labels remain invalid for shipping. Removed or unavailable labels fail the
+whole batch with an error instead of silently omitting pages. Each page retains its Platform
+Reference Number. The footer shows the release version and date for comparing employee installs.

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from pypdf import PdfReader, PdfWriter, Transformation
 from sqlalchemy import text
 
@@ -119,6 +120,38 @@ def label_pdf(
         data,
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="label-{label_id}-{kind}.pdf"'},
+    )
+
+
+class BatchPrint(BaseModel):
+    label_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+@router.post("/api/labels/batch-print")
+def batch_print(payload: BatchPrint, request: Request):
+    writer = PdfWriter()
+    for label_id in dict.fromkeys(payload.label_ids):
+        # Reuse single-label validation, checksum checks and reference annotation.
+        try:
+            response = label_pdf(label_id, request, kind="print")
+        except HTTPException as exc:
+            raise HTTPException(exc.status_code, f"Label {label_id}: {exc.detail}") from None
+        reader = PdfReader(io.BytesIO(response.body))
+        for page in reader.pages:
+            if (
+                abs(float(page.mediabox.width) - 288) > 1
+                or abs(float(page.mediabox.height) - 432) > 1
+            ):
+                raise HTTPException(
+                    422, f"Label {label_id} is not 4 x 6 inches. Print it individually."
+                )
+            writer.add_page(page)
+    output = io.BytesIO()
+    writer.write(output)
+    return Response(
+        output.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="shipping-labels-4x6.pdf"'},
     )
 
 

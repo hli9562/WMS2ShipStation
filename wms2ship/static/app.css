@@ -222,3 +222,12 @@ caption { padding: 6px 0; }
 .package-preset-label select { display: block; width: 100%; padding: 7px; margin: 5px 0; border: 1px solid var(--border); border-radius: 5px; }
 .settings-error { color: #84231a; background: #fff0ed; padding: 8px; border-radius: 5px; }
 @media (max-width: 850px) { .settings-grid { grid-template-columns: 1fr; } }
+
+/* Keep the expanded order table readable on ordinary laptop screens. */
+#order-status { margin: 6px 0 6px 8px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: white; }
+#orders input[type="checkbox"] { width: 18px; height: 18px; }
+.order-workspace table { min-width: 850px; }
+@media (min-width: 1051px) and (max-width: 1500px) {
+  #panel-import { grid-template-columns: 1fr; }
+  .import-tools { grid-column: 1; grid-row: 2; border-left: 0; border-top: 1px solid var(--border); padding: 12px 0 0; }
+}

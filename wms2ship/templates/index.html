@@ -34,10 +34,14 @@
       <div class="order-workspace">
       <h2>Imported WMS orders</h2>
       <p>Select an order to review and edit its shipping details. Existing orders are retained when you import them again.</p>
-      <label for="order-search">Find order<input id="order-search" type="search" placeholder="Order number or platform reference"></label>
-      <label><input id="new-orders-only" type="checkbox"> Only orders with no label attempts</label>
+      <label for="order-search">Find order<input id="order-search" type="search" placeholder="Order #, platform reference, tracking # or recipient" maxlength="200"></label>
+      <label>Status<select id="order-status"><option value="all">All orders</option><option value="new">New · no label attempts</option><option value="purchased">Purchased</option><option value="removed">Removed</option><option value="attention">Needs attention / processing</option></select></label>
+      <div class="inbox-actions"><button id="select-printable" type="button">Select printable on this page</button><button id="clear-printable" type="button">Clear selection</button><button id="batch-print" type="button" disabled>Open selected labels (0)</button></div>
+      <p class="field-note">Up to 100 labels per PDF. Use 4 × 6 inch paper, Actual size / 100%, no margins. Test and simulation labels are marked in the list.</p>
+      <p id="batch-print-status" role="status"></p>
       <p id="order-list-status" role="status" aria-live="polite"></p>
-      <div class="table-scroll" tabindex="0" aria-label="Imported order list"><table><caption>Imported orders · newest first</caption><thead><tr><th scope="col">Order number</th><th scope="col">Platform reference</th><th scope="col">Imported</th><th scope="col">Label status</th></tr></thead><tbody id="orders"></tbody></table></div>
+      <div class="table-scroll" tabindex="0" aria-label="Imported order list"><table><caption>Imported orders · newest first</caption><thead><tr><th scope="col">Print</th><th scope="col">Order number</th><th scope="col">Platform reference</th><th scope="col">Recipient</th><th scope="col">Tracking</th><th scope="col">Imported</th><th scope="col">Label status</th></tr></thead><tbody id="orders"></tbody></table></div>
+      <button id="orders-previous" type="button" disabled>Previous page</button><button id="orders-next" type="button" disabled>Next page</button>
       </div>
       <aside class="import-tools" aria-label="Import files">
       <form id="import-form">
@@ -221,6 +225,7 @@
       </form>
       <p id="contact-status" role="status" aria-live="polite"></p>
     </section>
+  <footer class="field-note">Version {{ version }} · Released {{ release_date }}</footer>
   </main>
 </body>
 </html>

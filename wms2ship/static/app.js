@@ -58,26 +58,50 @@ function message(parent, value, tag = 'p') {
 }
 
 let importedOrders = [];
+let orderOffset = 0;
+let orderRevision = 0;
+let orderSearchTimer;
+const selectedLabels = new Set();
+function updateBatchButton() {
+  const button = document.querySelector('#batch-print');
+  button.disabled = !selectedLabels.size;
+  button.textContent = `Open selected labels (${selectedLabels.size})`;
+}
 function renderOrders() {
-  const query = document.querySelector('#order-search').value.trim().toLowerCase();
-  const onlyNew = document.querySelector('#new-orders-only').checked;
-  const visible = importedOrders.filter(row => (!onlyNew || !row.label_status) &&
-    `${row.wms_order_no} ${row.platform_reference || ''}`.toLowerCase().includes(query));
   orders.replaceChildren();
-  document.querySelector('#order-list-status').textContent = `${visible.length} of ${importedOrders.length} orders · newest imported first`;
-  if (!visible.length) {
-    const cell = message(message(orders, '', 'tr'), importedOrders.length ? 'No matching orders.' : 'No orders imported yet.', 'td');
-    cell.colSpan = 4;
-  }
-  for (const row of visible) {
+  document.querySelector('#order-list-status').textContent = importedOrders.length
+    ? `Orders ${orderOffset + 1}–${orderOffset + importedOrders.length} · newest imported first`
+    : 'No matching orders.';
+  if (!importedOrders.length) message(message(orders, '', 'tr'), 'No matching orders.', 'td').colSpan = 7;
+  for (const row of importedOrders) {
     const tr = message(orders, '', 'tr');
     if (!row.label_status) tr.className = 'new-order';
+    const selectCell = message(tr, '', 'td');
+    if (row.label_id) {
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.setAttribute('aria-label', `Print ${row.wms_order_no}`);
+      checkbox.checked = selectedLabels.has(row.label_id);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked && selectedLabels.size >= 100) {
+          checkbox.checked = false;
+          document.querySelector('#batch-print-status').textContent = 'Select up to 100 labels per PDF.';
+          return;
+        }
+        if (checkbox.checked) selectedLabels.add(row.label_id); else selectedLabels.delete(row.label_id);
+        updateBatchButton();
+      });
+      selectCell.append(checkbox);
+    } else selectCell.textContent = '—';
     const link = message(message(tr, '', 'td'), row.wms_order_no, 'a');
     link.href = '#orders';
     message(tr, row.platform_reference || '—', 'td');
+    message(tr, row.recipient_name || '—', 'td');
+    message(tr, row.tracking_number || '—', 'td');
     const date = message(tr, new Date(row.created_at).toLocaleString(), 'td');
     date.title = row.created_at;
-    message(tr, row.label_status ? row.label_status.replaceAll('_', ' ') : 'New · no label attempts', 'td');
+    const mode = row.provider_code === 'fake' ? ' · SIMULATION' : row.provider_code === 'shipstation_test' ? ' · TEST' : '';
+    message(tr, row.label_status ? row.label_status.replaceAll('_', ' ') + mode : 'New · no label attempts', 'td');
     link.addEventListener('click', async event => {
       event.preventDefault();
       try {
@@ -91,13 +115,66 @@ function renderOrders() {
     });
   }
 }
-async function loadOrders() {
-  importedOrders = await api('/api/orders');
+async function loadOrders(reset = true) {
+  const revision = ++orderRevision;
+  if (reset) orderOffset = 0;
+  selectedLabels.clear();
+  updateBatchButton();
+  importedOrders = [];
+  orders.replaceChildren();
+  document.querySelector('#order-list-status').textContent = 'Loading orders…';
+  document.querySelector('#orders-previous').disabled = true;
+  document.querySelector('#orders-next').disabled = true;
+  const params = new URLSearchParams({search: document.querySelector('#order-search').value,
+    status: document.querySelector('#order-status').value, offset: orderOffset, limit: 101});
+  const rows = await api(`/api/orders?${params}`);
+  if (revision !== orderRevision) return;
+  importedOrders = rows.slice(0, 100);
+  document.querySelector('#orders-previous').disabled = orderOffset === 0;
+  document.querySelector('#orders-next').disabled = rows.length <= 100;
   renderOrders();
 }
-document.querySelector('#order-search').addEventListener('input', renderOrders);
-document.querySelector('#new-orders-only').addEventListener('change', renderOrders);
-document.querySelector('#tab-import').addEventListener('click', () => loadOrders().catch(error => { status.textContent = error.message; }));
+function reloadOrders() { loadOrders().catch(error => { status.textContent = error.message; }); }
+document.querySelector('#order-search').addEventListener('input', () => {
+  clearTimeout(orderSearchTimer);
+  ++orderRevision;
+  clearPrintSelection();
+  orderSearchTimer = setTimeout(reloadOrders, 250);
+});
+document.querySelector('#order-status').addEventListener('change', reloadOrders);
+document.querySelector('#tab-import').addEventListener('click', reloadOrders);
+for (const [id, delta] of [['orders-previous', -100], ['orders-next', 100]]) {
+  document.getElementById(id).addEventListener('click', () => {
+    orderOffset = Math.max(0, orderOffset + delta);
+    loadOrders(false).catch(error => { status.textContent = error.message; });
+  });
+}
+function clearPrintSelection() { selectedLabels.clear(); renderOrders(); updateBatchButton(); }
+document.querySelector('#clear-printable').addEventListener('click', clearPrintSelection);
+document.querySelector('#select-printable').addEventListener('click', () => {
+  importedOrders.filter(row => row.label_id).forEach(row => selectedLabels.add(row.label_id));
+  renderOrders(); updateBatchButton();
+});
+let batchPdfUrl;
+document.querySelector('#batch-print').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  const output = document.querySelector('#batch-print-status');
+  button.disabled = true;
+  output.textContent = 'Preparing labels…';
+  try {
+    const response = await fetch('/api/labels/batch-print', {method: 'POST',
+      headers: {'X-CSRF-Token': csrf, 'Content-Type': 'application/json'},
+      body: JSON.stringify({label_ids: [...selectedLabels]})});
+    if (!response.ok) { const error = await response.json(); throw new Error(typeof error.detail === 'string' ? error.detail : 'Unable to prepare labels.'); }
+    if (batchPdfUrl) URL.revokeObjectURL(batchPdfUrl);
+    batchPdfUrl = URL.createObjectURL(await response.blob());
+    output.replaceChildren();
+    const link = message(output, 'Open combined 4 × 6 PDF to print', 'a');
+    link.href = batchPdfUrl; link.target = '_blank'; link.rel = 'noopener';
+    message(output, 'Select Actual size / 100% in the print dialog.');
+  } catch (error) { output.textContent = error.message; }
+  finally { updateBatchButton(); }
+});
 
 document.querySelector('#import-form').addEventListener('submit', async event => {
   event.preventDefault();

@@ -2,7 +2,7 @@ import json
 from pathlib import PurePosixPath
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import bindparam, text
 from starlette.concurrency import run_in_threadpool
@@ -115,23 +115,49 @@ def import_detail(batch_id: str, request: Request):
 
 
 @router.get("/api/orders")
-def orders(request: Request):
+def orders(
+    request: Request,
+    search: str = Query("", max_length=200),
+    status: str = Query("all", pattern="^(all|new|purchased|removed|attention)$"),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(1000, ge=1, le=1000),
+):
+    query = """
+        WITH listed AS (
+          SELECT o.id,o.wms_order_no,o.platform_reference,o.created_at,
+            json_extract(o.recipient_json, '$.name') AS recipient_name,
+            CASE WHEN l.void_status='voided' THEN 'removed' ELSE a.state END AS label_status,
+            l.tracking_number,
+            CASE WHEN a.state='purchased' AND l.void_status NOT IN
+              ('voided','pending','uncertain') THEN l.id END AS label_id,
+            p.provider_code
+          FROM orders o
+          LEFT JOIN label_attempts a ON a.id=(SELECT id FROM label_attempts
+            WHERE order_id=o.id ORDER BY created_at DESC,id DESC LIMIT 1)
+          LEFT JOIN labels l ON l.attempt_id=a.id
+          LEFT JOIN provider_accounts p ON p.id=a.provider_account_id
+        ) SELECT * FROM listed WHERE
+          (:status='all' OR (:status='new' AND label_status IS NULL)
+           OR label_status=:status OR (:status='attention' AND
+             label_status IS NOT NULL AND label_status NOT IN ('purchased','removed')))
+          AND (instr(lower(COALESCE(wms_order_no,'') || ' ' ||
+            COALESCE(platform_reference,'') || ' ' || COALESCE(recipient_name,'') || ' ' ||
+            COALESCE(tracking_number,'')), :search)>0)
+        ORDER BY created_at DESC,id DESC LIMIT :limit OFFSET :offset
+    """
     with request.app.state.engine.connect() as db:
-        rows = (
-            db.execute(
-                text(
-                    "SELECT o.id,o.wms_order_no,o.platform_reference,o.created_at, "
-                    "(SELECT CASE WHEN EXISTS (SELECT 1 FROM labels l WHERE l.attempt_id=a.id "
-                    "AND l.void_status='voided') THEN 'removed' ELSE a.state END "
-                    "FROM label_attempts a WHERE a.order_id=o.id "
-                    "ORDER BY a.created_at DESC,a.id DESC LIMIT 1) AS label_status "
-                    "FROM orders o ORDER BY o.created_at DESC,o.id DESC LIMIT 1000"
-                )
-            )
-            .mappings()
-            .all()
-        )
-        return [dict(row) for row in rows]
+        return [
+            dict(row)
+            for row in db.execute(
+                text(query),
+                {
+                    "status": status,
+                    "search": search.strip().lower(),
+                    "offset": offset,
+                    "limit": limit,
+                },
+            ).mappings()
+        ]
 
 
 @router.get("/api/orders/{order_id}")

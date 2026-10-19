@@ -120,7 +120,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/")
     def home(request: Request):
         return templates.TemplateResponse(
-            request=request, name="index.html", context={"csrf": request.app.state.csrf_token}
+            request=request,
+            name="index.html",
+            context={
+                "csrf": request.app.state.csrf_token,
+                "version": "2026.10.19.1",
+                "release_date": "2026-10-19",
+            },
         )
 
     return app
