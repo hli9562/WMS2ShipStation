@@ -379,7 +379,7 @@ async function showConfiguration(order) {
         const scope = order.recipient.country === 'CA' ? 'international' : 'domestic';
         options(serviceSelect, (carrier?.services || []).filter(s => s[scope] !== false), restoreValues ? s.service_code : '');
         options(packageSelect, (carrier?.packages || []).filter(p => p[scope] !== false), restoreValues ? s.package_code : '');
-        const confirmation = confirmationSelect.value || (restoreValues ? s.confirmation : '');
+        const confirmation = confirmationSelect.value || (restoreValues ? s.confirmation : '') || 'delivery';
         const confirmations = [['none', 'None'], ['delivery', 'Delivery confirmation'], ['signature', 'Signature'], ['adult_signature', 'Adult signature']];
         if (providerCode === 'fake' || carrierSelect.value.startsWith('fedex')) confirmations.push(['direct_signature', 'Direct signature (FedEx only)']);
         confirmationSelect.setOptions(confirmations, confirmation);

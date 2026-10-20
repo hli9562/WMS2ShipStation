@@ -29,7 +29,7 @@ class ShippingDefaults(BaseModel):
     package_code: str = Field(default="", max_length=100)
     confirmation: Literal[
         "none", "delivery", "signature", "adult_signature", "direct_signature"
-    ] = "none"
+    ] = "delivery"
     residential: bool = True
     insurance: Literal["none", "carrier"] = "none"
 

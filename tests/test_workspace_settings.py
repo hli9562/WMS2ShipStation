@@ -18,7 +18,9 @@ def headers(client):
 def test_defaults_persist_without_changing_existing_order_configuration(tmp_path):
     settings = Settings(data_dir=tmp_path)
     with TestClient(create_app(settings)) as client:
-        assert client.get("/api/settings").json()["shipping_defaults"]["residential"] is True
+        initial_defaults = client.get("/api/settings").json()["shipping_defaults"]
+        assert initial_defaults["residential"] is True
+        assert initial_defaults["confirmation"] == "delivery"
         upload(client, workbook())
         identity = client.get("/api/orders").json()[0]["id"]
         endpoint = "/api/orders/" + identity
