@@ -359,3 +359,10 @@ are recorded after purchase. Carrier quote errors remain visible beside successf
 missing or invalid prices are never presented as zero. Authentication errors require active V1
 credentials and API account access. Documentation:
 https://www.shipstation.com/docs/api/shipments/get-rates/
+
+Rate comparison uses ShipStation V1 `/shipments/getrates` for every connected
+carrier, including when label creation is in test mode. Leaving `serviceCode` empty
+requests all services returned for the shipment and package. Standard parcel compares
+all carriers with a compatible `package` type; selected carrier/package supports
+other packaging. Quotes do not create labels or purchase postage. Unsupported
+services, missing compatible packaging, and carrier errors may limit returned quotes.

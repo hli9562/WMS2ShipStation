@@ -70,7 +70,7 @@ document.querySelector('#compare-rates').addEventListener('click', async () => {
     const warningBox = document.querySelector('#rates-warnings');
     for (const warning of result.warnings) message(warningBox, warning);
     document.querySelector('#rates-status').textContent = result.rates.length
-      ? `${result.rates.length} estimates · ${result.partial ? 'Some carriers unavailable · ' : ''}checked ${new Date(result.quoted_at).toLocaleTimeString()} · refresh after 5 minutes${result.mode === 'test' ? ' · USPS test mode' : ''}`
+      ? `${result.rates.length} estimates · ${result.partial ? 'Some carriers unavailable · ' : ''}checked ${new Date(result.quoted_at).toLocaleTimeString()} · refresh after 5 minutes${result.mode === 'test' ? ' · test-label creation mode' : ''}`
       : 'No quotes available. Review the details below and try again.';
     const body = document.querySelector('#rates-table tbody');
     body.replaceChildren();

@@ -10,7 +10,12 @@ from tests.test_imports import upload, workbook
 from wms2ship.config import Settings
 from wms2ship.main import create_app
 from wms2ship.rates import rate_payload
-from wms2ship.shipstation import ProviderUnavailable, ShipStationProvider, build_payload
+from wms2ship.shipstation import (
+    ProviderUnavailable,
+    ShipStationProvider,
+    ShipStationTestProvider,
+    build_payload,
+)
 
 
 def catalog():
@@ -75,15 +80,19 @@ def configured(client):
     return order, config, {"x-csrf-token": client.app.state.csrf_token}
 
 
-def install(client, handler=fake_response):
-    provider = ShipStationProvider("mock-key", "mock-secret", True, httpx.MockTransport(handler))
+def install(client, handler=fake_response, test_mode=False):
+    adapter = ShipStationTestProvider if test_mode else ShipStationProvider
+    provider = adapter("mock-key", "mock-secret", True, httpx.MockTransport(handler))
     provider.catalog = catalog
-    client.app.state.providers["shipstation"] = provider
+    client.app.state.providers[provider.code] = provider
     return provider
 
 
-def test_rates_read_only_sort_selectable_codes_and_same_measurements(tmp_path):
-    with TestClient(create_app(Settings(data_dir=tmp_path, enable_live_purchase=True))) as client:
+@pytest.mark.parametrize("live_enabled", [False, True])
+def test_rates_read_only_sort_selectable_codes_and_same_measurements(tmp_path, live_enabled):
+    with TestClient(
+        create_app(Settings(data_dir=tmp_path, enable_live_purchase=live_enabled))
+    ) as client:
         order, config, headers = configured(client)
         calls = []
 
@@ -97,10 +106,11 @@ def test_rates_read_only_sort_selectable_codes_and_same_measurements(tmp_path):
             assert body["serviceCode"] is None and body["packageCode"] == "package"
             return fake_response(request)
 
-        install(client, handler)
+        install(client, handler, test_mode=not live_enabled)
         response = client.post(f"/api/orders/{order['id']}/rates", json=config, headers=headers)
         assert response.status_code == 200, response.text
         result = response.json()
+        assert {c["carrierCode"] for c in calls} == {"stamps_com", "ups", "fedex"}
         assert len(calls) == 3
         assert [r["total_minor"] for r in result["rates"]] == [858] * 3 + [2210] * 3
         assert result["partial"] is False

@@ -142,8 +142,6 @@ def compare_rates(order_id: str, payload: RateRequest, request: Request):
         shipping = order["shipping"]
         destination = "international" if order["recipient"]["country"] == "CA" else "domestic"
         for carrier in catalog["carriers"]:
-            if provider_code == "shipstation_test" and carrier["code"] != "stamps_com":
-                continue
             if payload.scope == "selected" and carrier["code"] != shipping["carrier_code"]:
                 continue
             if shipping["confirmation"] == "direct_signature" and not carrier["code"].startswith(
@@ -167,10 +165,6 @@ def compare_rates(order_id: str, payload: RateRequest, request: Request):
                 )
                 continue
             candidates.append((carrier, package))
-        if len(candidates) > 12:
-            raise HTTPException(
-                422, "Too many connected carriers. Compare the selected carrier/package instead."
-            )
         if not candidates and not warnings:
             warnings.append(
                 "Choose an available carrier and package, or use standard parcel comparison."
