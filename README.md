@@ -366,3 +366,10 @@ requests all services returned for the shipment and package. Standard parcel com
 all carriers with a compatible `package` type; selected carrier/package supports
 other packaging. Quotes do not create labels or purchase postage. Unsupported
 services, missing compatible packaging, and carrier errors may limit returned quotes.
+
+Shipping follows three steps: basic shipper/package/delivery details, Get Quotes
+and service selection, then final review and purchase. Quote selection fills the
+carrier/service/package and shows both addresses, ship date, measurements, and the
+estimated price. A current selected quote is required for account-backed test and
+live labels; changing shipment details or quote expiry requires a fresh comparison.
+Simulation remains available without a connected account.

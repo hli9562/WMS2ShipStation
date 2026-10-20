@@ -215,6 +215,7 @@ const packageUnits = [
 function updateCreateLabel() {
   document.querySelector('#create-label').disabled = !shipmentReady || labelRequestInFlight || !ratePurchaseAllowed();
   updateRatePurchaseText();
+  renderShipmentReview();
 }
 function scheduleReadiness() {
   checkRateChanges();
@@ -234,7 +235,7 @@ function scheduleReadiness() {
       if (revision !== readinessRevision) return;
       target.replaceChildren();
       shipmentReady = result.valid;
-      if (result.valid) message(target, result.mode === 'live' ? (ratePurchaseAllowed() ? 'Ready to buy a shipping label. Your carrier account will be charged.' : 'Shipping details complete. Compare rates and select a service before buying.') : result.mode === 'test' ? 'Ready to create a test label.' : 'Ready to create a simulated label.');
+      if (result.valid) message(target, result.mode === 'live' ? (ratePurchaseAllowed() ? 'Ready to buy a shipping label. Your carrier account will be charged.' : 'Shipping details complete. Compare rates and select a service before buying.') : result.mode === 'test' ? (ratePurchaseAllowed() ? 'Ready to create a test label.' : 'Get quotes and select a service in step 2.') : 'Ready to create a simulated label.');
       for (const issue of result.issues) message(target, `${issue.field}: ${issue.message}`);
     } catch (error) {
       if (revision !== readinessRevision) return;
@@ -324,7 +325,7 @@ async function showConfiguration(order) {
   const shipping = document.querySelector('#shipping-fields');
   const customs = document.querySelector('#customs-fields');
   const packageFields = document.querySelector('#package-fields');
-  [origin, shipping, customs, packageFields].forEach(node => node.replaceChildren());
+  [origin, shipping, customs, packageFields, document.querySelector('#packaging-fields'), document.querySelector('#final-service-fields'), document.querySelector('#final-options')].forEach(node => node.replaceChildren());
   const packageData = order.packages[0] || {};
   renderPackagePresets();
   for (const [key, label, factor] of packageUnits) {
@@ -411,7 +412,7 @@ async function showConfiguration(order) {
   const extraFields = document.createElement('div');
   extraFields.className = 'fields';
   extras.append(extraFields);
-  shipping.append(extras);
+  document.querySelector('#final-options').append(extras);
   field(extraFields, 'shipping.insurance', 'Insurance', s.insurance, [['none', 'None'], ['carrier', 'Carrier']]);
   field(extraFields, 'shipping.insured_value', 'Insured value (USD, if insured)', s.insured_value);
   const addOns = [['saturday_delivery', 'Saturday delivery'], ['non_machinable', 'Non-machinable handling']];
@@ -430,6 +431,11 @@ async function showConfiguration(order) {
   message(extraFields, 'Availability and extra charges depend on the carrier and account.');
   const catalogNote = message(shipping, availableProviders.some(p => p.code === 'shipstation') ? 'Carrier choices come from your connected account.' : 'Simulation only. Connect ShipStation credentials for real carrier choices.');
   catalogNote.className = 'field-note';
+  for (const name of ['carrier_code', 'package_code']) {
+    document.querySelector('#packaging-fields').append(shipping.querySelector(`[data-field="shipping.${name}"]`));
+  }
+  document.querySelector('#final-service-fields').append(shipping.querySelector('[data-field="shipping.service_code"]'));
+  document.querySelector('#manual-service').open = providerSelect.value === 'fake';
   const canadian = order.recipient.country === 'CA';
   document.querySelector('#customs-heading').hidden = !canadian;
   customs.hidden = !canadian;
@@ -456,7 +462,7 @@ function configurationPayload() {
   const origin = {};
   for (const input of document.querySelectorAll('#origin-fields input')) origin[input.name.split('.')[1]] = input.value;
   const shipping = {};
-  for (const input of document.querySelectorAll('#shipping-fields input')) {
+  for (const input of document.querySelectorAll('#configuration-form input[name^="shipping."]')) {
     shipping[input.name.split('.')[1]] = formValue(input.name);
   }
   for (const key of ['saturday_delivery', 'non_machinable']) shipping[key] = shipping[key] === 'true';

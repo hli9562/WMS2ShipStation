@@ -83,11 +83,10 @@
           <button type="button" data-open-tab="import">Choose another order</button>
         </div>
         <p id="configuration-mode">Simulation only — carrier choices do not buy usable postage.</p>
-        <div id="configuration-actions">
-          <div id="validation-result" role="status" aria-live="polite"></div>
-          <button type="button" id="create-label" disabled aria-describedby="validation-result">Create simulated label</button>
-        </div>
         <form id="configuration-form">
+          <section class="workflow-step basic-step" aria-labelledby="basic-heading">
+            <h3 id="basic-heading">1. Basic shipment information</h3>
+            <div class="basic-grid">
           <div class="shipper-card">
             <h3>Shipper / return address</h3>
             <div id="shipper-choices" class="fields"></div>
@@ -106,29 +105,42 @@
               <div id="package-fields" class="fields"></div>
             </div>
             <div class="shipping-card">
-              <h3>Shipping options</h3>
+              <h3>Shipment details</h3>
               <div id="shipping-fields" class="fields"></div>
+              <details class="packaging-options"><summary>Carrier packaging (optional)</summary><div id="packaging-fields" class="fields"></div></details>
             </div>
           </div>
-          <div id="customs-section" class="customs-card" hidden>
-            <h3 id="customs-heading">Canada customs</h3>
-            <div id="customs-fields" class="fields"></div>
-          </div>
-        </form>
+            </div>
+          </section>
         <section class="rates-card" aria-labelledby="rates-heading">
-          <h3 id="rates-heading">Compare Rates</h3>
-          <p>Check package measurements and delivery confirmation above, then compare shipping prices before buying.</p>
+          <h3 id="rates-heading">2. Get quotes and select a service</h3>
+          <p>Get prices for the shipment above, then select a row to continue to final review.</p>
           <div class="inbox-actions">
             <label>Compare<select id="rate-scope"><option value="standard">Standard parcel · all carriers and services</option><option value="selected">Selected carrier and package type</option></select></label>
             <button type="button" id="compare-rates">Compare Rates</button>
           </div>
-          <p class="field-note">Standard parcel compares your own packaging. For carrier boxes or Flat Rate packaging, choose the carrier and package above, then use selected carrier/package comparison.</p>
+          <p class="field-note">Standard parcel compares your own packaging. For carrier boxes or Flat Rate packaging, expand Carrier packaging above and choose the carrier and package, then use selected carrier/package comparison.</p>
           <p id="rates-status" role="status" aria-live="polite">Choose shipment details to compare rates.</p>
           <div id="rates-warnings" role="status"></div>
           <div class="table-scroll"><table id="rates-table" hidden><caption>Shipping estimates · USD · lowest returned price first</caption><thead><tr><th>Carrier</th><th>Service / Package</th><th>Shipping</th><th>Other charges</th><th>Estimate</th><th>Select</th></tr></thead><tbody></tbody></table></div>
           <p id="rate-selection" role="status"></p>
           <p id="rate-note" class="field-note">Insurance, add-ons, duties/taxes and later adjustments are not included. Actual charges may differ.</p>
         </section>
+          <section id="final-review" class="workflow-step" aria-labelledby="review-heading">
+            <h3 id="review-heading">3. Final review and purchase</h3>
+            <div id="shipment-review" class="shipment-review"></div>
+            <details id="manual-service"><summary>Service options</summary><div id="final-service-fields" class="fields"></div></details>
+            <div id="final-options"></div>
+          <div id="customs-section" class="customs-card" hidden>
+            <h3 id="customs-heading">Canada customs</h3>
+            <div id="customs-fields" class="fields"></div>
+          </div>
+        <div id="configuration-actions">
+          <div id="validation-result" role="status" aria-live="polite"></div>
+          <button type="button" id="create-label" disabled aria-describedby="validation-result">Create simulated label</button>
+        </div>
+          </section>
+        </form>
         <div id="purchase-result" role="status" aria-live="polite"></div>
         <details><summary>Imported data</summary><pre id="order-preview"></pre></details>
       </section>

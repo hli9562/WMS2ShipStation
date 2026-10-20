@@ -10,7 +10,7 @@ function rateFormFingerprint() {
   return JSON.stringify({order: currentOrder?.id, config: configurationPayload(), scope: document.querySelector('#rate-scope').value});
 }
 function ratePurchaseAllowed() {
-  if (formValue('shipping.provider') !== 'shipstation') return !rateBusy;
+  if (formValue('shipping.provider') === 'fake') return !rateBusy;
   return !!selectedRate && Date.now() < rateExpires && rateFingerprint === rateFormFingerprint() && !rateBusy;
 }
 function updateRatePurchaseText() {
@@ -97,8 +97,9 @@ document.querySelector('#compare-rates').addEventListener('click', async () => {
           selectedRate = rate;
           rateFingerprint = rateFormFingerprint();
           body.querySelectorAll('tr').forEach((row, i) => row.classList.toggle('selected-rate', i === index));
-          document.querySelector('#rate-selection').textContent = `Selected: ${rate.carrier_name} / ${rate.service_name} · estimate ${rateMoney(rate.total_minor)} USD. Review the shipping options above, then buy the label.`;
+          document.querySelector('#rate-selection').textContent = `Selected: ${rate.carrier_name} / ${rate.service_name} · estimate ${rateMoney(rate.total_minor)} USD. Review the shipment below before purchasing.`;
           scheduleReadiness();
+          document.querySelector('#final-review').scrollIntoView({behavior: 'smooth', block: 'start'});
         } catch (error) { invalidateRates(error.message); }
       });
     });
@@ -113,3 +114,21 @@ document.querySelector('#compare-rates').addEventListener('click', async () => {
     }
   }
 });
+
+function renderShipmentReview() {
+  const target = document.querySelector('#shipment-review');
+  if (!target || !currentOrder) return;
+  target.replaceChildren();
+  const add = (title, value) => {
+    const item = message(target, '', 'div');
+    message(item, title, 'strong');
+    message(item, value || 'Not selected', 'span');
+  };
+  const recipient = currentOrder.recipient;
+  add('Ship to', [recipient.name, recipient.address1, recipient.address2, recipient.city, recipient.state, recipient.postal, recipient.country].filter(Boolean).join(' · '));
+  add('Ship from', ['name', 'address1', 'city', 'state', 'postal', 'country'].map(key => formValue(`origin.${key}`)).filter(Boolean).join(' · '));
+  add('Ship date', formValue('shipping.ship_date'));
+  add('Package', packageUnits.map(([key, label]) => `${formValue(`package.${key}`) || '?'} ${label}`).join(' · '));
+  add('Selected quote', selectedRate ? `${selectedRate.carrier_name} · ${selectedRate.service_name} · ${selectedRate.package_name}` : formValue('shipping.provider') === 'fake' ? 'Simulation · choose service options below' : 'Get quotes and select a service in step 2');
+  add('Estimated price', selectedRate ? rateMoney(selectedRate.total_minor) + ' USD · actual charge may differ' : '—');
+}
