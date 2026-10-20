@@ -102,16 +102,15 @@ async function compareRates() {
       choose.type = 'button';
       choose.dataset.rateIndex = index;
       choose.setAttribute('aria-pressed', 'false');
-      choose.title = `${rate.package_name} · Shipping ${rateMoney(rate.shipment_minor)} + other ${rateMoney(rate.other_minor)} USD`;
       choose.setAttribute('aria-label', `Select ${rate.carrier_name} ${rate.service_name} ${rateMoney(rate.total_minor)}`);
       if (rate.total_minor === result.rates[0].total_minor) {
         message(choose, 'Lowest returned price', 'span').className = 'quote-best';
       }
       message(choose, rate.service_name, 'strong').className = 'quote-service';
-      message(choose, rate.package_name, 'span').className = 'quote-package';
       message(choose, rateMoney(rate.total_minor), 'strong').className = 'quote-price';
-      message(choose, `USD · Shipping ${rateMoney(rate.shipment_minor)} + other ${rateMoney(rate.other_minor)}`, 'span').className = 'quote-breakdown';
-      message(choose, 'Select service', 'span').className = 'quote-choice';
+      const selectedMarker = message(choose, '✓ Selected', 'span');
+      selectedMarker.className = 'quote-choice';
+      selectedMarker.hidden = true;
       choose.addEventListener('click', () => {
         if (Date.now() >= rateExpires || rateFingerprint !== rateFormFingerprint()) {
           invalidateRates('Quotes expired or details changed. Compare rates again.'); return;
@@ -125,7 +124,7 @@ async function compareRates() {
             const selected = Number(card.dataset.rateIndex) === index;
             card.classList.toggle('selected-rate', selected);
             card.setAttribute('aria-pressed', String(selected));
-            card.querySelector('.quote-choice').textContent = selected ? '✓ Selected' : 'Select service';
+            card.querySelector('.quote-choice').hidden = !selected;
           });
           document.querySelector('#rate-selection').textContent = `Selected: ${rate.carrier_name} / ${rate.service_name} · estimate ${rateMoney(rate.total_minor)} USD. Review the shipment below before purchasing.`;
           scheduleReadiness();
