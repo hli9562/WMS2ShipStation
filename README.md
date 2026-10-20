@@ -379,8 +379,8 @@ carrier logos and color accents. Carrier groups are ordered by their lowest quot
 and services within each group by price. The lowest returned price is marked;
 selection updates the final shipment review without purchasing postage.
 
-After quotes return, basic shipment information collapses into a compact summary
-and service cards move into view automatically. Carrier groups sit side by side
+After quotes return, basic shipment information stays open and service cards
+move into view automatically. Carrier groups sit side by side
 on desktop screens. Reopen step 1 to edit; changed details invalidate old quotes.
 
 Opening a ShipStation order fetches quotes automatically after carrier choices
