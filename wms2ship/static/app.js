@@ -363,8 +363,6 @@ async function showConfiguration(order) {
     carrierSelect.setOptions([]);
     serviceSelect.setOptions([]);
     packageSelect.setOptions([]);
-    const modeInfo = availableProviders.find(p => p.code === providerCode);
-    document.querySelector('#configuration-mode').textContent = providerCode === 'fake' ? 'Simulation only — not valid postage.' : providerCode === 'shipstation_test' ? 'Test mode · USPS test labels only · Not valid postage' : `ShipStation live account. Paid purchasing is ${modeInfo?.live_purchase_enabled ? 'enabled' : 'disabled in server configuration'}.`;
     document.querySelector('#create-label').textContent = providerCode === 'fake' ? 'Create simulated label' : providerCode === 'shipstation_test' ? 'Create label' : 'Buy shipping label';
     catalogLoaded = false;
     scheduleReadiness();
