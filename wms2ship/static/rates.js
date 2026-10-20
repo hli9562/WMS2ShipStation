@@ -7,7 +7,7 @@ let applyComparedRate = null;
 let rateBusy = false;
 const rateMoney = value => (value / 100).toLocaleString('en-US', {style: 'currency', currency: 'USD'});
 function rateFormFingerprint() {
-  return JSON.stringify({order: currentOrder?.id, config: configurationPayload(), scope: document.querySelector('#rate-scope').value});
+  return JSON.stringify({order: currentOrder?.id, config: configurationPayload(), scope: 'standard'});
 }
 function ratePurchaseAllowed() {
   if (formValue('shipping.provider') === 'fake') return !rateBusy;
@@ -24,7 +24,6 @@ function resetRateComparison() {
   clearTimeout(rateExpiryTimer);
   rateFingerprint = null; selectedRate = null; rateExpires = 0; rateBusy = false;
   applyComparedRate = null;
-  document.querySelector('#rate-scope').value = 'standard';
   document.querySelector('#rates-status').textContent = 'Rates load automatically when carrier choices are ready.';
   document.querySelector('#rates-warnings').replaceChildren();
   document.querySelector('#quote-results').hidden = true;
@@ -46,7 +45,6 @@ function invalidateRates(reason) {
 function checkRateChanges() {
   if (rateFingerprint && rateFingerprint !== rateFormFingerprint()) invalidateRates('Shipping details changed. Compare rates again.');
 }
-document.querySelector('#rate-scope').addEventListener('change', checkRateChanges);
 async function compareRates() {
   if (!currentOrder || labelRequestInFlight || rateBusy) return;
   if (!catalogLoaded) {
@@ -63,7 +61,7 @@ async function compareRates() {
   try {
     const result = await api(`/api/orders/${orderId}/rates`, {method: 'POST',
       headers: {'X-CSRF-Token': csrf, 'Content-Type': 'application/json'},
-      body: JSON.stringify({...configurationPayload(), scope: document.querySelector('#rate-scope').value})});
+      body: JSON.stringify({...configurationPayload(), scope: 'standard'})});
     if (revision !== rateRevision || rateFingerprint !== rateFormFingerprint()) return;
     rateExpires = result.rates.length ? Date.now() + result.valid_for_seconds * 1000 : 0;
     document.querySelector('#rate-note').textContent = result.note;

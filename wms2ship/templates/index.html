@@ -108,7 +108,7 @@
             <div class="shipping-card">
               <h3>Shipment details</h3>
               <div id="shipping-fields" class="fields"></div>
-              <details class="packaging-options"><summary>Carrier packaging (optional)</summary><div id="packaging-fields" class="fields"></div></details>
+              <div id="packaging-fields" hidden></div>
             </div>
           </div>
             </div>
@@ -116,11 +116,10 @@
         <section class="rates-card" aria-labelledby="rates-heading">
           <h3 id="rates-heading">2. Get quotes and select a service</h3>
           <div class="inbox-actions">
-            <label>Compare<select id="rate-scope"><option value="standard">Standard parcel · all carriers and services</option><option value="selected">Selected carrier and package type</option></select></label>
             <button type="button" id="compare-rates">Refresh rates</button>
           </div>
           <details class="quote-help"><summary>Packaging and quote details</summary>
-            <p class="field-note">Standard parcel compares your own packaging. For carrier packaging, expand Carrier packaging in step 1, then compare the selected carrier/package.</p>
+            <p class="field-note">Quotes use the package measurements above and compare standard parcels across connected carriers. Selecting a quote fills its carrier, service, and package type.</p>
             <p id="rate-note" class="field-note">Insurance, add-ons, duties/taxes and later adjustments are not included. Actual charges may differ.</p>
           </details>
           <p id="rates-status" role="status" aria-live="polite">Choose shipment details to compare rates.</p>
