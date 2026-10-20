@@ -114,7 +114,7 @@
           </section>
         <section class="rates-card" aria-labelledby="rates-heading">
           <h3 id="rates-heading">2. Get quotes and select a service</h3>
-          <p>Get prices for the shipment above, then select a row to continue to final review.</p>
+          <p>Get prices for the shipment above, then select a service card to continue to final review.</p>
           <div class="inbox-actions">
             <label>Compare<select id="rate-scope"><option value="standard">Standard parcel · all carriers and services</option><option value="selected">Selected carrier and package type</option></select></label>
             <button type="button" id="compare-rates">Compare Rates</button>
@@ -122,7 +122,7 @@
           <p class="field-note">Standard parcel compares your own packaging. For carrier boxes or Flat Rate packaging, expand Carrier packaging above and choose the carrier and package, then use selected carrier/package comparison.</p>
           <p id="rates-status" role="status" aria-live="polite">Choose shipment details to compare rates.</p>
           <div id="rates-warnings" role="status"></div>
-          <div class="table-scroll"><table id="rates-table" hidden><caption>Shipping estimates · USD · lowest returned price first</caption><thead><tr><th>Carrier</th><th>Service / Package</th><th>Shipping</th><th>Other charges</th><th>Estimate</th><th>Select</th></tr></thead><tbody></tbody></table></div>
+          <div id="quote-results" class="quote-results" aria-label="Shipping quotes by carrier" hidden></div>
           <p id="rate-selection" role="status"></p>
           <p id="rate-note" class="field-note">Insurance, add-ons, duties/taxes and later adjustments are not included. Actual charges may differ.</p>
         </section>

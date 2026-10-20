@@ -373,3 +373,8 @@ carrier/service/package and shows both addresses, ship date, measurements, and t
 estimated price. A current selected quote is required for account-backed test and
 live labels; changing shipment details or quote expiry requires a fresh comparison.
 Simulation remains available without a connected account.
+
+Quotes appear as selectable service cards grouped by carrier, with locally stored
+carrier logos and color accents. Carrier groups are ordered by their lowest quote,
+and services within each group by price. The lowest returned price is marked;
+selection updates the final shipment review without purchasing postage.

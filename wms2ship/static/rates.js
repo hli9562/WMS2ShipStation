@@ -27,8 +27,8 @@ function resetRateComparison() {
   document.querySelector('#rate-scope').value = 'standard';
   document.querySelector('#rates-status').textContent = 'Compare rates and select a service before buying a live label.';
   document.querySelector('#rates-warnings').replaceChildren();
-  document.querySelector('#rates-table').hidden = true;
-  document.querySelector('#rates-table tbody').replaceChildren();
+  document.querySelector('#quote-results').hidden = true;
+  document.querySelector('#quote-results').replaceChildren();
   document.querySelector('#rate-selection').textContent = '';
   document.querySelector('#compare-rates').disabled = false;
 }
@@ -36,7 +36,7 @@ function invalidateRates(reason) {
   ++rateRevision;
   clearTimeout(rateExpiryTimer);
   rateFingerprint = null; selectedRate = null; rateExpires = 0; rateBusy = false;
-  document.querySelector('#rates-table').hidden = true;
+  document.querySelector('#quote-results').hidden = true;
   document.querySelector('#rate-selection').textContent = '';
   document.querySelector('#rates-warnings').replaceChildren();
   document.querySelector('#rates-status').textContent = reason;
@@ -72,21 +72,47 @@ document.querySelector('#compare-rates').addEventListener('click', async () => {
     document.querySelector('#rates-status').textContent = result.rates.length
       ? `${result.rates.length} estimates · ${result.partial ? 'Some carriers unavailable · ' : ''}checked ${new Date(result.quoted_at).toLocaleTimeString()} · refresh after 5 minutes${result.mode === 'test' ? ' · test-label creation mode' : ''}`
       : 'No quotes available. Review the details below and try again.';
-    const body = document.querySelector('#rates-table tbody');
+    const body = document.querySelector('#quote-results');
     body.replaceChildren();
-    document.querySelector('#rates-table').hidden = !result.rates.length;
+    document.querySelector('#quote-results').hidden = !result.rates.length;
+    const groups = new Map();
     result.rates.forEach((rate, index) => {
-      const tr = message(body, '', 'tr');
-      message(tr, rate.carrier_name, 'td');
-      const service = message(tr, rate.service_name, 'td');
-      message(service, rate.package_name, 'small');
-      message(tr, rateMoney(rate.shipment_minor), 'td');
-      message(tr, rateMoney(rate.other_minor), 'td');
-      const total = message(tr, rateMoney(rate.total_minor), 'td');
-      if (rate.total_minor === result.rates[0].total_minor) message(total, 'Lowest returned', 'small');
-      const choose = message(message(tr, '', 'td'), 'Select', 'button');
+      if (!groups.has(rate.carrier_code)) {
+        const brand = carrierBrand(rate.carrier_code);
+        const group = message(body, '', 'article');
+        group.className = `carrier-quotes carrier-${brand.tone}`;
+        const header = message(group, '', 'header');
+        header.className = 'carrier-quote-header';
+        const identity = message(header, '', 'div');
+        identity.className = 'carrier-identity';
+        if (brand.logo) {
+          const logo = document.createElement('img');
+          logo.src = `/static/carriers/${brand.logo}`;
+          logo.alt = `${brand.name} logo`;
+          logo.className = 'carrier-logo';
+          logo.addEventListener('error', () => { logo.hidden = true; });
+          identity.append(logo);
+        }
+        message(identity, brand.name || rate.carrier_name, 'strong');
+        message(header, rate.carrier_name, 'span');
+        const cards = message(group, '', 'div');
+        cards.className = 'carrier-quote-grid';
+        groups.set(rate.carrier_code, cards);
+      }
+      const choose = message(groups.get(rate.carrier_code), '', 'button');
+      choose.className = 'quote-card';
       choose.type = 'button';
-      choose.setAttribute('aria-label', `Select ${rate.service_name} ${rateMoney(rate.total_minor)}`);
+      choose.dataset.rateIndex = index;
+      choose.setAttribute('aria-pressed', 'false');
+      choose.setAttribute('aria-label', `Select ${rate.carrier_name} ${rate.service_name} ${rateMoney(rate.total_minor)}`);
+      if (rate.total_minor === result.rates[0].total_minor) {
+        message(choose, 'Lowest returned price', 'span').className = 'quote-best';
+      }
+      message(choose, rate.service_name, 'strong').className = 'quote-service';
+      message(choose, rate.package_name, 'span').className = 'quote-package';
+      message(choose, rateMoney(rate.total_minor), 'strong').className = 'quote-price';
+      message(choose, `USD · Shipping ${rateMoney(rate.shipment_minor)} + other ${rateMoney(rate.other_minor)}`, 'span').className = 'quote-breakdown';
+      message(choose, 'Select service', 'span').className = 'quote-choice';
       choose.addEventListener('click', () => {
         if (Date.now() >= rateExpires || rateFingerprint !== rateFormFingerprint()) {
           invalidateRates('Quotes expired or details changed. Compare rates again.'); return;
@@ -96,7 +122,12 @@ document.querySelector('#compare-rates').addEventListener('click', async () => {
           applyComparedRate(rate);
           selectedRate = rate;
           rateFingerprint = rateFormFingerprint();
-          body.querySelectorAll('tr').forEach((row, i) => row.classList.toggle('selected-rate', i === index));
+          body.querySelectorAll('.quote-card').forEach(card => {
+            const selected = Number(card.dataset.rateIndex) === index;
+            card.classList.toggle('selected-rate', selected);
+            card.setAttribute('aria-pressed', String(selected));
+            card.querySelector('.quote-choice').textContent = selected ? '✓ Selected' : 'Select service';
+          });
           document.querySelector('#rate-selection').textContent = `Selected: ${rate.carrier_name} / ${rate.service_name} · estimate ${rateMoney(rate.total_minor)} USD. Review the shipment below before purchasing.`;
           scheduleReadiness();
           document.querySelector('#final-review').scrollIntoView({behavior: 'smooth', block: 'start'});
@@ -131,4 +162,13 @@ function renderShipmentReview() {
   add('Package', packageUnits.map(([key, label]) => `${formValue(`package.${key}`) || '?'} ${label}`).join(' · '));
   add('Selected quote', selectedRate ? `${selectedRate.carrier_name} · ${selectedRate.service_name} · ${selectedRate.package_name}` : formValue('shipping.provider') === 'fake' ? 'Simulation · choose service options below' : 'Get quotes and select a service in step 2');
   add('Estimated price', selectedRate ? rateMoney(selectedRate.total_minor) + ' USD · actual charge may differ' : '—');
+}
+
+function carrierBrand(code) {
+  const normalized = code.toLowerCase();
+  if (normalized === 'stamps_com' || normalized.startsWith('usps')) return {name: 'USPS', tone: 'usps', logo: 'usps.svg'};
+  if (normalized.startsWith('ups')) return {name: 'UPS', tone: 'ups', logo: 'ups.svg'};
+  if (normalized.startsWith('fedex')) return {name: 'FedEx', tone: 'fedex', logo: 'fedex.png'};
+  if (normalized.startsWith('globalpost')) return {name: 'GlobalPost', tone: 'globalpost', logo: 'globalpost.svg'};
+  return {name: '', tone: 'other', logo: null};
 }
