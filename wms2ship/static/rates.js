@@ -104,6 +104,7 @@ document.querySelector('#compare-rates').addEventListener('click', async () => {
       choose.type = 'button';
       choose.dataset.rateIndex = index;
       choose.setAttribute('aria-pressed', 'false');
+      choose.title = `${rate.package_name} · Shipping ${rateMoney(rate.shipment_minor)} + other ${rateMoney(rate.other_minor)} USD`;
       choose.setAttribute('aria-label', `Select ${rate.carrier_name} ${rate.service_name} ${rateMoney(rate.total_minor)}`);
       if (rate.total_minor === result.rates[0].total_minor) {
         message(choose, 'Lowest returned price', 'span').className = 'quote-best';
@@ -134,6 +135,10 @@ document.querySelector('#compare-rates').addEventListener('click', async () => {
         } catch (error) { invalidateRates(error.message); }
       });
     });
+    if (result.rates.length) {
+      document.querySelector('#basic-step').open = false;
+      document.querySelector('.rates-card').scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
     rateExpiryTimer = setTimeout(() => invalidateRates('Quotes expired. Compare rates again before buying.'), result.valid_for_seconds * 1000);
   } catch (error) {
     if (revision !== rateRevision) return;
@@ -159,6 +164,7 @@ function renderShipmentReview() {
   add('Ship to', [recipient.name, recipient.address1, recipient.address2, recipient.city, recipient.state, recipient.postal, recipient.country].filter(Boolean).join(' · '));
   add('Ship from', ['name', 'address1', 'city', 'state', 'postal', 'country'].map(key => formValue(`origin.${key}`)).filter(Boolean).join(' · '));
   add('Ship date', formValue('shipping.ship_date'));
+  document.querySelector('#basic-summary').textContent = `${formValue('origin.city') || 'Shipper needed'} → ${recipient.city || recipient.country} · ${formValue('package.weight_g') || '?'} oz · ${formValue('shipping.ship_date') || 'Choose date'}`;
   add('Package', packageUnits.map(([key, label]) => `${formValue(`package.${key}`) || '?'} ${label}`).join(' · '));
   add('Selected quote', selectedRate ? `${selectedRate.carrier_name} · ${selectedRate.service_name} · ${selectedRate.package_name}` : formValue('shipping.provider') === 'fake' ? 'Simulation · choose service options below' : 'Get quotes and select a service in step 2');
   add('Estimated price', selectedRate ? rateMoney(selectedRate.total_minor) + ' USD · actual charge may differ' : '—');

@@ -84,8 +84,8 @@
         </div>
         <p id="configuration-mode">Simulation only — carrier choices do not buy usable postage.</p>
         <form id="configuration-form">
-          <section class="workflow-step basic-step" aria-labelledby="basic-heading">
-            <h3 id="basic-heading">1. Basic shipment information</h3>
+          <details id="basic-step" class="workflow-step basic-step" open>
+            <summary id="basic-heading">1. Basic shipment information <span id="basic-summary"></span></summary>
             <div class="basic-grid">
           <div class="shipper-card">
             <h3>Shipper / return address</h3>
@@ -99,10 +99,11 @@
           <div class="shipping-main">
             <div class="shipping-card">
               <h3>Package weight and dimensions</h3>
-              <p>Measurements are converted to oz and inches, then rounded up to whole numbers.</p>
-              <label class="package-preset-label">Package template<select id="package-preset"><option value="">Keep current dimensions</option></select></label>
-              <p class="field-note">Selecting a template fills dimensions only. Check actual packed weight.</p>
               <div id="package-fields" class="fields"></div>
+              <details class="package-help"><summary>Package templates &amp; measurement help</summary>
+                <label class="package-preset-label">Package template<select id="package-preset"><option value="">Keep current dimensions</option></select></label>
+                <p class="field-note">Measurements round up to whole oz and inches. Templates fill dimensions only; check actual packed weight.</p>
+              </details>
             </div>
             <div class="shipping-card">
               <h3>Shipment details</h3>
@@ -111,20 +112,21 @@
             </div>
           </div>
             </div>
-          </section>
+          </details>
         <section class="rates-card" aria-labelledby="rates-heading">
           <h3 id="rates-heading">2. Get quotes and select a service</h3>
-          <p>Get prices for the shipment above, then select a service card to continue to final review.</p>
           <div class="inbox-actions">
             <label>Compare<select id="rate-scope"><option value="standard">Standard parcel · all carriers and services</option><option value="selected">Selected carrier and package type</option></select></label>
             <button type="button" id="compare-rates">Compare Rates</button>
           </div>
-          <p class="field-note">Standard parcel compares your own packaging. For carrier boxes or Flat Rate packaging, expand Carrier packaging above and choose the carrier and package, then use selected carrier/package comparison.</p>
+          <details class="quote-help"><summary>Packaging and quote details</summary>
+            <p class="field-note">Standard parcel compares your own packaging. For carrier packaging, expand Carrier packaging in step 1, then compare the selected carrier/package.</p>
+            <p id="rate-note" class="field-note">Insurance, add-ons, duties/taxes and later adjustments are not included. Actual charges may differ.</p>
+          </details>
           <p id="rates-status" role="status" aria-live="polite">Choose shipment details to compare rates.</p>
           <div id="rates-warnings" role="status"></div>
           <div id="quote-results" class="quote-results" aria-label="Shipping quotes by carrier" hidden></div>
           <p id="rate-selection" role="status"></p>
-          <p id="rate-note" class="field-note">Insurance, add-ons, duties/taxes and later adjustments are not included. Actual charges may differ.</p>
         </section>
           <section id="final-review" class="workflow-step" aria-labelledby="review-heading">
             <h3 id="review-heading">3. Final review and purchase</h3>

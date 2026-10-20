@@ -378,3 +378,7 @@ Quotes appear as selectable service cards grouped by carrier, with locally store
 carrier logos and color accents. Carrier groups are ordered by their lowest quote,
 and services within each group by price. The lowest returned price is marked;
 selection updates the final shipment review without purchasing postage.
+
+After quotes return, basic shipment information collapses into a compact summary
+and service cards move into view automatically. Carrier groups sit side by side
+on desktop screens. Reopen step 1 to edit; changed details invalidate old quotes.
