@@ -132,9 +132,6 @@ async function compareRates() {
         } catch (error) { invalidateRates(error.message); }
       });
     });
-    if (result.rates.length) {
-      document.querySelector('.rates-card').scrollIntoView({behavior: 'smooth', block: 'start'});
-    }
     rateExpiryTimer = setTimeout(() => invalidateRates('Quotes expired. Compare rates again before buying.'), result.valid_for_seconds * 1000);
   } catch (error) {
     if (revision !== rateRevision) return;
