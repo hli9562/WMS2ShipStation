@@ -387,3 +387,8 @@ Opening a ShipStation order fetches quotes automatically after carrier choices
 load. Refresh rates stays disabled while quotes are current, then becomes available
 after shipment edits, expiry, or a failed/empty lookup. Editing does not submit
 another rate request until Refresh rates is clicked.
+
+Canadian shipment forms default blank duties payer to Recipient, contents to
+Merchandise, and non-delivery to Return to sender. Saved nonblank choices are
+preserved. Customs options share a compact row, with a separate item declaration
+row for description, unit value, currency, origin country, and HS code.

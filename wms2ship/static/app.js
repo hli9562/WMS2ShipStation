@@ -444,14 +444,20 @@ async function showConfiguration(order) {
   customs.hidden = !canadian;
   document.querySelector('#customs-section').hidden = !canadian;
   if (canadian) {
-    field(customs, 'shipping.duties_payer', 'Duties payer', s.duties_payer, [['recipient', 'Recipient']]);
-    field(customs, 'customs.contents', 'Contents type', order.customs?.contents, ['merchandise', 'documents', 'gift', 'returned_goods', 'sample'].map(code => [code, code]));
-    field(customs, 'customs.non_delivery', 'If undeliverable', order.customs?.non_delivery, [['return_to_sender', 'Return to sender'], ['treat_as_abandoned', 'Treat as abandoned']]);
+    const choices = document.createElement('div');
+    choices.className = 'fields customs-options';
+    customs.append(choices);
+    field(choices, 'shipping.duties_payer', 'Duties payer', s.duties_payer || 'recipient', [['recipient', 'Recipient']]);
+    field(choices, 'customs.contents', 'Contents type', order.customs?.contents || 'merchandise', ['merchandise', 'documents', 'gift', 'returned_goods', 'sample'].map(code => [code, code.replaceAll('_', ' ').replace(/^./, letter => letter.toUpperCase())]));
+    field(choices, 'customs.non_delivery', 'If undeliverable', order.customs?.non_delivery || 'return_to_sender', [['return_to_sender', 'Return to sender'], ['treat_as_abandoned', 'Treat as abandoned']]);
     order.items.forEach((item, index) => {
       const declaration = order.customs?.items?.find(d => d.item_id === item.id) || {};
-      message(customs, `${item.sku} · quantity ${item.quantity}`, 'h4');
-      for (const [key, label] of Object.entries({ description: 'Customs description', unit_value: 'Declared unit value', currency: 'Currency (USD)', country_of_origin: 'Origin country (2 letters)', hs_code: 'HS code (6–10 digits)' })) {
-        field(customs, `customs.${index}.${key}`, label, declaration[key]);
+      const itemFields = document.createElement('div');
+      itemFields.className = 'fields customs-item';
+      customs.append(itemFields);
+      message(itemFields, `${item.sku} · quantity ${item.quantity}`, 'h4');
+      for (const [key, label] of Object.entries({ description: 'Description', unit_value: 'Unit value', currency: 'Currency (USD)', country_of_origin: 'Origin (2 letters)', hs_code: 'HS code (6–10 digits)' })) {
+        field(itemFields, `customs.${index}.${key}`, label, declaration[key]);
       }
     });
   }
