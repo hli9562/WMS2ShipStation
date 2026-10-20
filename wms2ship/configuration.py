@@ -163,7 +163,7 @@ def validate_order(order, catalog):
     origin = order.get("origin") or {}
     shipping = order.get("shipping") or {}
     recipient = order.get("recipient") or {}
-    for field in ("name", "phone", "address1", "city", "state", "postal", "country"):
+    for field in ("name", "address1", "city", "state", "postal", "country"):
         if not origin.get(field):
             issue(f"origin.{field}", "Required warehouse/contact information.")
     if (

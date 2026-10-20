@@ -339,7 +339,7 @@ async function showConfiguration(order) {
     });
     input.required = true;
   }
-  for (const [key, label] of Object.entries({ name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US / CA)' })) {
+  for (const [key, label] of Object.entries({ name: 'Contact name', company: 'Company', phone: 'Phone (optional)', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US / CA)' })) {
     field(origin, `origin.${key}`, label, order.origin?.[key]);
   }
   renderShipperChoices();
@@ -531,7 +531,7 @@ document.querySelector('#create-label').addEventListener('click', async event =>
   }
 });
 
-const addressLabels = { name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US / CA)' };
+const addressLabels = { name: 'Contact name', company: 'Company', phone: 'Phone (optional)', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US / CA)' };
 let shipperContacts = [];
 let editingContactId = null;
 function editContact(contact = null) {
@@ -650,7 +650,7 @@ function updateOriginSummary(collapse = false) {
     value('phone'),
   ].filter(Boolean);
   document.querySelector('#origin-summary').textContent = lines.join('\n') || 'Choose a saved shipper or enter the return address.';
-  const complete = ['name', 'phone', 'address1', 'city', 'state', 'postal', 'country'].every(key => value(key));
+  const complete = ['name', 'address1', 'city', 'state', 'postal', 'country'].every(key => value(key));
   if (collapse) document.querySelector('#origin-details').open = !complete;
 }
 document.querySelector('#origin-fields').addEventListener('input', () => updateOriginSummary());

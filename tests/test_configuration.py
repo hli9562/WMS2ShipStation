@@ -321,9 +321,11 @@ def test_draft_readiness_checks_without_saving(tmp_path):
         assert ready.status_code == 200
         assert ready.json()["valid"] is True
         config["origin"]["phone"] = ""
+        assert client.post(url, json=config, headers=headers).json()["valid"] is True
+        config["origin"]["address1"] = ""
         blocked = client.post(url, json=config, headers=headers).json()
         assert blocked["valid"] is False
-        assert any(issue["field"] == "origin.phone" for issue in blocked["issues"])
+        assert any(issue["field"] == "origin.address1" for issue in blocked["issues"])
         unchanged = client.get(f"/api/orders/{order_id}").json()
         assert unchanged["version"] == order["version"]
         assert unchanged["origin"] == order["origin"]
