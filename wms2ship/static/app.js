@@ -457,7 +457,8 @@ async function showConfiguration(order) {
       customs.append(itemFields);
       message(itemFields, `${item.sku} · quantity ${item.quantity}`, 'h4');
       for (const [key, label] of Object.entries({ description: 'Description', unit_value: 'Unit value', currency: 'Currency (USD)', country_of_origin: 'Origin (2 letters)', hs_code: 'HS code (6–10 digits)' })) {
-        field(itemFields, `customs.${index}.${key}`, label, declaration[key]);
+        const defaultValue = key === 'currency' ? 'USD' : key === 'country_of_origin' ? 'CN' : '';
+        field(itemFields, `customs.${index}.${key}`, label, declaration[key] || defaultValue);
       }
     });
   }
