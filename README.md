@@ -382,3 +382,8 @@ selection updates the final shipment review without purchasing postage.
 After quotes return, basic shipment information collapses into a compact summary
 and service cards move into view automatically. Carrier groups sit side by side
 on desktop screens. Reopen step 1 to edit; changed details invalidate old quotes.
+
+Opening a ShipStation order fetches quotes automatically after carrier choices
+load. Refresh rates stays disabled while quotes are current, then becomes available
+after shipment edits, expiry, or a failed/empty lookup. Editing does not submit
+another rate request until Refresh rates is clicked.

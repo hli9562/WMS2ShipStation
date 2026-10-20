@@ -402,6 +402,8 @@ async function showConfiguration(order) {
       };
       catalogLoaded = true;
       scheduleReadiness();
+      if (providerCode !== 'fake') compareRates();
+      else document.querySelector('#rates-status').textContent = 'Simulation has no carrier prices. Choose a simulated service in final review.';
     } catch (error) { document.querySelector('#validation-result').textContent = error.message; }
   }
   refreshCatalog(true);

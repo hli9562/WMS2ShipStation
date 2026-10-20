@@ -25,7 +25,7 @@ function resetRateComparison() {
   rateFingerprint = null; selectedRate = null; rateExpires = 0; rateBusy = false;
   applyComparedRate = null;
   document.querySelector('#rate-scope').value = 'standard';
-  document.querySelector('#rates-status').textContent = 'Compare rates and select a service before buying a live label.';
+  document.querySelector('#rates-status').textContent = 'Rates load automatically when carrier choices are ready.';
   document.querySelector('#rates-warnings').replaceChildren();
   document.querySelector('#quote-results').hidden = true;
   document.querySelector('#quote-results').replaceChildren();
@@ -47,8 +47,8 @@ function checkRateChanges() {
   if (rateFingerprint && rateFingerprint !== rateFormFingerprint()) invalidateRates('Shipping details changed. Compare rates again.');
 }
 document.querySelector('#rate-scope').addEventListener('change', checkRateChanges);
-document.querySelector('#compare-rates').addEventListener('click', async () => {
-  if (!currentOrder || labelRequestInFlight) return;
+async function compareRates() {
+  if (!currentOrder || labelRequestInFlight || rateBusy) return;
   if (!catalogLoaded) {
     document.querySelector('#rates-status').textContent = 'Carrier choices are unavailable. Check the connection error above, then reopen this order.';
     return;
@@ -65,7 +65,7 @@ document.querySelector('#compare-rates').addEventListener('click', async () => {
       headers: {'X-CSRF-Token': csrf, 'Content-Type': 'application/json'},
       body: JSON.stringify({...configurationPayload(), scope: document.querySelector('#rate-scope').value})});
     if (revision !== rateRevision || rateFingerprint !== rateFormFingerprint()) return;
-    rateExpires = Date.now() + result.valid_for_seconds * 1000;
+    rateExpires = result.rates.length ? Date.now() + result.valid_for_seconds * 1000 : 0;
     document.querySelector('#rate-note').textContent = result.note;
     const warningBox = document.querySelector('#rates-warnings');
     for (const warning of result.warnings) message(warningBox, warning);
@@ -146,10 +146,11 @@ document.querySelector('#compare-rates').addEventListener('click', async () => {
     document.querySelector('#rates-status').textContent = error.message;
   } finally {
     if (revision === rateRevision) {
-      rateBusy = false; document.querySelector('#compare-rates').disabled = false; updateCreateLabel();
+      rateBusy = false; document.querySelector('#compare-rates').disabled = !!rateFingerprint && Date.now() < rateExpires; updateCreateLabel();
     }
   }
-});
+}
+document.querySelector('#compare-rates').addEventListener('click', compareRates);
 
 function renderShipmentReview() {
   const target = document.querySelector('#shipment-review');
