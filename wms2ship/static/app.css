@@ -326,3 +326,10 @@ caption { padding: 6px 0; }
   .rates-card > .inbox-actions { display: flex; flex-wrap: wrap; margin-top: 8px; }
 }
 @media (max-width: 380px) { .carrier-quote-grid { grid-template-columns: 1fr; } }
+
+#preview-panel .shipping-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 6px 12px; margin-bottom: 6px; }
+#preview-panel .shipping-heading h2 { margin: 0; white-space: nowrap; }
+.shipping-heading #order-summary { white-space: nowrap; }
+#preview-panel .shipping-heading #configuration-mode { margin: 0; padding: 4px 8px; font-size: .72rem; }
+.shipping-heading > button { margin: 0 0 0 auto; padding: 6px 10px; white-space: nowrap; }
+@media (max-width: 700px) { .shipping-heading > button { margin-left: 0; } }
