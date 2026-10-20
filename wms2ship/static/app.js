@@ -561,6 +561,7 @@ function editContact(contact = null) {
 function renderShipperChoices() {
   const container = document.querySelector('#shipper-choices');
   container.replaceChildren();
+  container.hidden = shipperContacts.length === 1;
   if (!shipperContacts.length) {
     message(container, 'No saved contacts yet. Add a shipper contact in Settings, or enter details below.');
     const button = message(container, 'Add a contact in Settings', 'button');
@@ -577,9 +578,10 @@ function renderShipperChoices() {
       scheduleReadiness();
     }
   }
+  if (shipperContacts.length === 1) return;
   const matches = shipperContacts.find(contact => Object.keys(addressLabels).every(key =>
     (document.querySelector('#configuration-form').elements.namedItem(`origin.${key}`)?.value || '') === (contact.address[key] || '')));
-  const choice = field(container, 'saved_shipper', 'Saved shipper contact', matches?.id || '', shipperContacts.map(c => [c.id, c.label]));
+  const choice = field(container, 'saved_shipper', 'Change shipper', matches?.id || '', shipperContacts.map(c => [c.id, c.label]));
   choice.onchange = () => {
     const contact = shipperContacts.find(c => c.id === choice.value);
     if (!contact) return;
