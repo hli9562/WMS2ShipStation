@@ -27,7 +27,6 @@
     <div class="tabs" role="tablist" aria-label="Workspace">
       <button type="button" id="tab-import" role="tab" aria-controls="panel-import" aria-selected="true" tabindex="0">WMS orders</button>
       <button type="button" id="tab-orders" role="tab" aria-controls="panel-orders" aria-selected="false" tabindex="-1">Shipping details</button>
-      <button type="button" id="tab-history" role="tab" aria-controls="panel-history" aria-selected="false" tabindex="-1">History</button>
       <button type="button" id="tab-fees" role="tab" aria-controls="panel-fees" aria-selected="false" tabindex="-1">Carrier Fee Summary</button>
       <button type="button" id="tab-settings" role="tab" aria-controls="panel-settings" aria-selected="false" tabindex="-1">Settings</button>
     </div>
@@ -134,24 +133,6 @@
         <details><summary>Imported data</summary><pre id="order-preview"></pre></details>
       </section>
     </div>
-    <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" hidden>
-      <h2>Shipment history</h2>
-      <p>Thermal printer: open Label PDF (Platform Reference Number), select 4 × 6 inch paper, Actual size / 100%, and no margins. Missing platform references show N/A. Original carrier PDF is also available. Letter PDF is for office printers.</p>
-      <p>Use live tracking numbers to update WMS manually. Simulation and USPS test labels are not valid for shipping.</p>
-      <form id="history-filters">
-        <div class="fields">
-          <label>Order, tracking, status, provider, or attempt<input type="search" name="search" placeholder="e.g. PM-*, *1234, USPS-TEST-??" maxlength="200"></label>
-          <label>From (your local time)<input type="datetime-local" name="start" step="1"></label>
-          <label>Through (your local time)<input type="datetime-local" name="end" step="1"></label>
-        </div>
-        <p class="field-note">Use * for any characters and ? for one character. Plain text finds partial matches. Time boundaries are inclusive.</p>
-        <button type="submit" id="refresh-history">Apply filters / refresh</button>
-        <button type="button" id="clear-history-filters">Clear filters</button>
-      </form>
-      <p id="history-status" role="status" aria-live="polite"></p>
-      <div class="table-scroll" tabindex="0" aria-label="Scrollable label history"><table><caption>Labels and purchase attempts</caption><thead><tr><th scope="col">Order</th><th scope="col">Created (local)</th><th scope="col">Mode</th><th scope="col">Status</th><th scope="col">Provider</th><th scope="col">Tracking</th><th scope="col">Charge</th><th scope="col">Action required</th><th scope="col">Labels</th><th scope="col">Attempt ID</th></tr></thead><tbody id="history"></tbody></table></div>
-      <button type="button" id="more-history" hidden>Load more history</button>
-    </section>
     <section id="panel-fees" role="tabpanel" aria-labelledby="tab-fees" tabindex="0" hidden>
       <h2>Carrier Fee Summary</h2>
       <p>See total shipping fees across your entire ShipStation account, including labels purchased on the ShipStation website.</p>

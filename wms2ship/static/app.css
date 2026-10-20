@@ -238,3 +238,5 @@ caption { padding: 6px 0; }
 #rates-table .selected-rate { background: #e6f2e9; }
 #rates-warnings { color: #8c350f; }
 #rate-selection { font-weight: 600; }
+
+#purchase-result a { display: inline-block; margin: 8px 16px 4px 0; font-weight: 600; }

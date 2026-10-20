@@ -513,86 +513,23 @@ document.querySelector('#create-label').addEventListener('click', async event =>
       purchaseTokens.delete(key);
       button.textContent = 'Create another USPS test label';
     }
-    if (attempt.state === 'purchased') document.querySelector('#history-filters').reset();
-    await loadHistory(true);
-    if (attempt.state === 'purchased') {
-      openTab('history');
-      document.querySelector('#tab-history').focus();
-      document.querySelector('#panel-history').scrollIntoView({ behavior: 'smooth' });
-    }
     target.textContent = ` ${attempt.mode === 'simulation' ? 'SIMULATION — NOT VALID POSTAGE.' : attempt.mode === 'test' ? 'USPS TEST LABEL — NOT VALID POSTAGE.' : 'ShipStation purchase.'} Attempt ${attempt.id}: ${attempt.state}. ${attempt.labels.map(l => l.tracking_number).join(', ')}`;
+    for (const label of attempt.labels) {
+      for (const [kind, title] of [['print', 'Label PDF / thermal print'], ['letter', 'Letter PDF'], ['original', 'Original carrier PDF']]) {
+        const link = message(target, title, 'a');
+        link.href = `/api/labels/${label.id}/pdf?kind=${kind}`;
+        link.target = '_blank'; link.rel = 'noopener';
+      }
+      renderVoidAction(target, { ...label, label_id: label.id, order_id: order.id, wms_order_no: order.wms_order_no });
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    await loadOrders();
   } catch (error) { target.textContent = error.message; }
   finally {
     labelRequestInFlight = false;
     updateCreateLabel();
   }
 });
-
-let historyOffset = 0;
-let historyQuery = new URLSearchParams();
-let historyBusy = false;
-async function loadHistory(reset = false) {
-  if (historyBusy) return;
-  historyBusy = true;
-  const target = document.querySelector('#history');
-  const feedback = document.querySelector('#history-status');
-  const more = document.querySelector('#more-history');
-  const refresh = document.querySelector('#refresh-history');
-  more.disabled = refresh.disabled = true;
-  document.querySelector('#clear-history-filters').disabled = true;
-  feedback.textContent = 'Loading history…';
-  try {
-    const query = reset ? new URLSearchParams(new FormData(document.querySelector('#history-filters'))) : new URLSearchParams(historyQuery);
-    if (reset) {
-      for (const [key, value] of [...query.entries()]) {
-        if (!value.trim()) query.delete(key);
-        else if (key === 'start' || key === 'end') query.set(key, new Date(value).toISOString());
-      }
-    }
-    query.set('offset', reset ? 0 : historyOffset);
-    const rows = await api(`/api/history?${query}`);
-    if (reset) {
-      historyOffset = 0;
-      target.replaceChildren();
-      query.delete('offset');
-      historyQuery = query;
-    }
-    if (!rows.length && historyOffset === 0) {
-      const cell = message(message(target, '', 'tr'), 'No labels or attempts match these filters.', 'td');
-      cell.colSpan = 10;
-    }
-    for (const row of rows) {
-      const tr = message(target, '', 'tr');
-      message(tr, row.wms_order_no, 'td');
-      const created = message(tr, new Date(row.created_at).toLocaleString(), 'td');
-      created.title = row.created_at;
-      for (const value of [row.mode.toUpperCase(), row.state, row.provider_code, row.tracking_number || '—', row.charge_minor == null ? 'Not recorded' : `${(row.charge_minor / 100).toFixed(2)} ${row.currency}`, row.error_code || '—']) message(tr, value, 'td');
-      const links = message(tr, '', 'td');
-      if (row.label_id && !['pending', 'uncertain', 'voided'].includes(row.void_status)) {
-        for (const [kind, title] of [['print', 'Label PDF / thermal print (Platform Reference)'], ['original', 'Original carrier PDF'], ['letter', 'Letter PDF (office printer)']]) {
-          const link = message(links, title, 'a');
-          link.href = `/api/labels/${row.label_id}/pdf?kind=${kind}`;
-          link.target = '_blank'; link.rel = 'noopener';
-        }
-      } else links.textContent = '—';
-      if (row.label_id) renderVoidAction(links, row);
-      message(tr, row.attempt_id, 'td');
-    }
-    historyOffset += rows.length;
-    more.hidden = rows.length < 50;
-    feedback.textContent = `Showing ${historyOffset} matching records.${more.hidden ? '' : ' Load more for older matches.'}`;
-  } catch (error) { feedback.textContent = error.message; }
-  finally {
-    historyBusy = false; more.disabled = refresh.disabled = false;
-    document.querySelector('#clear-history-filters').disabled = false;
-  }
-}
-document.querySelector('#history-filters').addEventListener('submit', event => { event.preventDefault(); loadHistory(true); });
-document.querySelector('#history-filters').addEventListener('input', () => { document.querySelector('#history-status').textContent = 'Filters changed. Apply filters to update the table.'; });
-document.querySelector('#clear-history-filters').addEventListener('click', () => { document.querySelector('#history-filters').reset(); loadHistory(true); });
-document.querySelector('#more-history').addEventListener('click', () => loadHistory(false));
-document.querySelector('#tab-history').addEventListener('click', () => loadHistory(true));
-loadHistory(true);
 
 const addressLabels = { name: 'Contact name', company: 'Company', phone: 'Phone', address1: 'Street address', address2: 'Address line 2', city: 'City (Katy)', state: 'State (TX or Texas)', postal: 'ZIP code', country: 'Country (US / CA)' };
 let shipperContacts = [];
@@ -732,11 +669,12 @@ function renderVoidAction(container, row) {
         body: JSON.stringify({ confirm_void: true })
       });
       window.alert('Label removed locally. ShipStation was not changed.');
+      container.replaceChildren();
+      message(container, 'Label removed locally. ShipStation postage is unchanged.');
       if (result.void_status === 'voided' && currentOrder?.id === row.order_id) {
         for (const key of purchaseTokens.keys()) if (key.startsWith(`${row.order_id}:`)) purchaseTokens.delete(key);
       }
       await loadOrders();
-      await loadHistory(true);
     } catch (error) { window.alert(error.message); }
     finally { button.disabled = false; }
   };
